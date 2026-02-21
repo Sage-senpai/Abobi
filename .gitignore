@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Abobi: local SQLite database (contains user data)
+/data/
+
+# Keep .env.example but never .env.local
+.env.local
+!.env.example
