@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAccount } from "wagmi";
+import { useWallet } from "@/hooks/useWallet";
 import type { ChatMessage } from "@/types/chat";
 
 async function fetchHistory(
@@ -15,7 +15,7 @@ async function fetchHistory(
 }
 
 export function useHistory(limit = 50) {
-  const { address } = useAccount();
+  const { address } = useWallet();
 
   return useQuery({
     queryKey: ["history", address, limit],

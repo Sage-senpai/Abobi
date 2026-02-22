@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { useProfile } from "@/hooks/useProfile";
-import { useAccount } from "wagmi";
+import { useWallet } from "@/hooks/useWallet";
 
 const NAV_ITEMS = [
   { label: "Home", href: "/", emoji: "🏠" },
@@ -19,7 +19,7 @@ function shortenAddress(addr: string): string {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { address } = useAccount();
+  const { address, isDemo } = useWallet();
   const { data } = useProfile();
 
   return (
@@ -47,7 +47,7 @@ export function Sidebar() {
                 {shortenAddress(address)}
               </p>
               <p className="text-abobi-muted text-xs">
-                {data?.streak.current ?? 0} day streak 🔥
+                {isDemo ? "Demo Mode 🎭" : `${data?.streak.current ?? 0} day streak 🔥`}
               </p>
             </div>
           </div>

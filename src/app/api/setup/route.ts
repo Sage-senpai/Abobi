@@ -94,12 +94,8 @@ export async function POST(req: NextRequest) {
       const ledger = await broker.ledger.getLedger();
       if (ledger) {
         ledgerExists = true;
-        // balance field is in neuron (1e18), convert to 0G
-        const balanceWei: bigint =
-          typeof ledger.balance === "bigint"
-            ? ledger.balance
-            : BigInt(String(ledger.balance ?? 0));
-        existingBalance = Number(balanceWei) / 1e18;
+        // availableBalance is in neuron (1e18), convert to 0G
+        existingBalance = Number(ledger.availableBalance) / 1e18;
       }
     } catch {
       // No ledger yet

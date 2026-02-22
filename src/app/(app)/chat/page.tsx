@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAccount } from "wagmi";
+import { useWallet } from "@/hooks/useWallet";
 import { useQuery } from "@tanstack/react-query";
 import { ChatThread } from "@/components/chat/ChatThread";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -18,7 +18,7 @@ async function loadHistory(wallet: string): Promise<ChatMessage[]> {
 }
 
 export default function ChatPage() {
-  const { address } = useAccount();
+  const { address } = useWallet();
   const { messages, isLoading, sendMessage } = useChat();
   const setMessages = useChatStore((s) => s.setMessages);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useAccount } from "wagmi";
+import { useWallet } from "@/hooks/useWallet";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { useProfile } from "@/hooks/useProfile";
@@ -30,7 +30,7 @@ function StatCard({ label, value, emoji, delay }: { label: string; value: string
 }
 
 export default function DashboardPage() {
-  const { address } = useAccount();
+  const { address } = useWallet();
   const { data: profileData, isLoading: profileLoading } = useProfile();
   const { data: messages, isLoading: historyLoading } = useHistory(500);
 

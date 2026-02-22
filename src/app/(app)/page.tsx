@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useAccount } from "wagmi";
+import { useWallet } from "@/hooks/useWallet";
 import { GreetingCard } from "@/components/home/GreetingCard";
 import { StreakCard } from "@/components/home/StreakCard";
 import { MemoryCard } from "@/components/home/MemoryCard";
@@ -12,7 +12,7 @@ import { GradientButton } from "@/components/ui/GradientButton";
 import { useUserStore } from "@/store/userStore";
 
 export default function HomePage() {
-  const { address } = useAccount();
+  const { address } = useWallet();
   const setWalletAddress = useUserStore((s) => s.setWalletAddress);
 
   useEffect(() => {

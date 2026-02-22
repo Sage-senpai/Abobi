@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAccount } from "wagmi";
+import { useWallet } from "@/hooks/useWallet";
 import type { ProfileResponse } from "@/types/user";
 
 async function fetchProfile(wallet: string): Promise<ProfileResponse> {
@@ -11,7 +11,7 @@ async function fetchProfile(wallet: string): Promise<ProfileResponse> {
 }
 
 export function useProfile() {
-  const { address } = useAccount();
+  const { address } = useWallet();
 
   return useQuery({
     queryKey: ["profile", address],

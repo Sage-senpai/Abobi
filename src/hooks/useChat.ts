@@ -2,13 +2,13 @@
 
 import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAccount } from "wagmi";
+import { useWallet } from "@/hooks/useWallet";
 import { nanoid } from "nanoid";
 import { useChatStore } from "@/store/chatStore";
 import type { ChatMessage, ChatResponse } from "@/types/chat";
 
 export function useChat() {
-  const { address } = useAccount();
+  const { address } = useWallet();
   const queryClient = useQueryClient();
   const { messages, isLoading, error, addMessage, setLoading, setError } =
     useChatStore();

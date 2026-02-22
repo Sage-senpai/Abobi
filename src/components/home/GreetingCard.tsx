@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useAccount } from "wagmi";
+import { useWallet } from "@/hooks/useWallet";
 import { GlassCard } from "@/components/ui/GlassCard";
 
 function getPidginGreeting(): string {
@@ -16,7 +16,7 @@ function shortenAddress(addr: string): string {
 }
 
 export function GreetingCard() {
-  const { address } = useAccount();
+  const { address, isDemo } = useWallet();
 
   return (
     <GlassCard
@@ -39,7 +39,7 @@ export function GreetingCard() {
             Abobi AI Bro
           </p>
           <p className="text-white font-semibold text-sm">
-            {address ? shortenAddress(address) : "Anonymous"}
+            {isDemo ? "Demo User 🎭" : address ? shortenAddress(address) : "Anonymous"}
           </p>
         </div>
       </div>

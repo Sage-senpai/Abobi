@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { LoadingDots } from "@/components/ui/LoadingDots";
+import { useDemoStore } from "@/store/demoStore";
 
 interface WalletGuardProps {
   children: React.ReactNode;
@@ -11,6 +12,10 @@ interface WalletGuardProps {
 
 export function WalletGuard({ children }: WalletGuardProps) {
   const { status } = useAccount();
+  const isDemoMode = useDemoStore((s) => s.isDemoMode);
+
+  // Demo mode bypasses all wallet checks
+  if (isDemoMode) return <>{children}</>;
   const router = useRouter();
   // mounted prevents redirect during the brief window between
   // ClientProviders mounting and wagmi completing its reconnection check.

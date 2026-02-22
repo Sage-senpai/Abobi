@@ -6,18 +6,19 @@ import { useAccount } from "wagmi";
 import { motion } from "framer-motion";
 import { WaveBackground } from "@/components/ui/WaveBackground";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
+import { useDemoStore } from "@/store/demoStore";
 
 export default function ConnectPage() {
   const { address, status } = useAccount();
   const router = useRouter();
+  const { isDemoMode, enableDemo } = useDemoStore();
 
-  // Only redirect once the connection is fully confirmed — not during
-  // the transient "reconnecting" state, which would cause a loop.
+  // Redirect if already connected (real wallet or demo)
   useEffect(() => {
-    if (status === "connected" && address) {
+    if (isDemoMode || (status === "connected" && address)) {
       router.replace("/dashboard");
     }
-  }, [address, status, router]);
+  }, [address, status, isDemoMode, router]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 relative">
@@ -64,8 +65,22 @@ export default function ConnectPage() {
         </div>
 
         {/* Connect */}
-        <div className="w-full flex flex-col items-center gap-4">
+        <div className="w-full flex flex-col items-center gap-3">
           <ConnectButton />
+
+          <div className="flex items-center gap-3 w-full">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-white/30 text-xs">or</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+
+          <button
+            onClick={enableDemo}
+            className="w-full py-3 rounded-2xl border border-white/15 text-white/60 text-sm font-medium hover:border-abobi-purple/60 hover:text-white/80 hover:bg-abobi-purple/10 transition-all"
+          >
+            Try Demo Mode
+          </button>
+
           <p className="text-abobi-muted text-xs text-center max-w-xs">
             Connect your wallet to begin. No email, no password — just you and Abobi.
           </p>
