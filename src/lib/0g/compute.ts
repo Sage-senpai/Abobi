@@ -25,9 +25,10 @@ type ZGBroker = Awaited<ReturnType<typeof initBroker>>;
 let _brokerPromise: Promise<ZGBroker> | null = null;
 
 async function initBroker() {
-  const { createZGComputeNetworkBroker } = await import(
-    "@0glabs/0g-serving-broker"
-  );
+  // Use require() — dynamic import() triggers Node.js ESM loader which cannot
+  // resolve named exports from the CJS bundle inside @0glabs/0g-serving-broker.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createZGComputeNetworkBroker } = require("@0glabs/0g-serving-broker") as typeof import("@0glabs/0g-serving-broker");
 
   const rpcUrl = process.env.NEXT_PUBLIC_0G_RPC_URL;
   const privateKey = process.env.OG_SERVER_PRIVATE_KEY;
