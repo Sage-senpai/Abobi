@@ -10,8 +10,11 @@ let _db: Database.Database | null = null;
 function getDb(): Database.Database {
   if (_db) return _db;
 
-  const dbPath = process.env.DATABASE_PATH ?? "./data/abobi.db";
-  const absPath = path.resolve(process.cwd(), dbPath);
+  // On Vercel (and other serverless platforms), only /tmp is writable.
+  // Locally, default to ./data/abobi.db relative to cwd.
+  const defaultPath = process.env.VERCEL ? "/tmp/abobi.db" : "./data/abobi.db";
+  const dbPath = process.env.DATABASE_PATH ?? defaultPath;
+  const absPath = dbPath.startsWith("/") ? dbPath : path.resolve(process.cwd(), dbPath);
 
   // Ensure directory exists
   fs.mkdirSync(path.dirname(absPath), { recursive: true });
