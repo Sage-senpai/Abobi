@@ -12,6 +12,11 @@ const nextConfig: NextConfig = {
     "@0glabs/0g-serving-broker",
   ],
 
+  // Ensure the native better-sqlite3 binary is included in the serverless bundle
+  outputFileTracingIncludes: {
+    "/api/**": ["./node_modules/better-sqlite3/**"],
+  },
+
   webpack(config) {
     // MetaMask SDK pulls in @react-native-async-storage (React Native only).
     // WalletConnect's pino logger pulls in pino-pretty (server dev tool only).

@@ -5,7 +5,7 @@ import { downloadHistory } from "@/lib/0g/storage";
 
 const QuerySchema = z.object({
   wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid wallet address"),
-  limit: z.coerce.number().min(1).max(100).default(50),
+  limit: z.coerce.number().min(1).max(2000).default(50),
 });
 
 export async function GET(req: NextRequest) {
