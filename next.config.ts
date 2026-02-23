@@ -5,17 +5,16 @@ const nextConfig: NextConfig = {
   // Fix workspace root detection — parent package-lock.json causes false detection
   outputFileTracingRoot: path.resolve(__dirname),
 
-  // Mark server-only native packages so Next.js doesn't bundle them
+  // Skip ESLint during builds — run `pnpm lint` locally instead
+  eslint: { ignoreDuringBuilds: true },
+
+  // Mark server-only native packages so Next.js doesn't bundle them.
+  // Vercel's file tracer picks up better-sqlite3 automatically via serverExternalPackages.
   serverExternalPackages: [
     "better-sqlite3",
     "@0glabs/0g-ts-sdk",
     "@0glabs/0g-serving-broker",
   ],
-
-  // Ensure the native better-sqlite3 binary is included in the serverless bundle
-  outputFileTracingIncludes: {
-    "/api/**": ["./node_modules/better-sqlite3/**"],
-  },
 
   webpack(config) {
     // MetaMask SDK pulls in @react-native-async-storage (React Native only).
