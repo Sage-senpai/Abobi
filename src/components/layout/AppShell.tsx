@@ -1,6 +1,5 @@
 "use client";
 
-import { WaveBackground } from "@/components/ui/WaveBackground";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 
@@ -10,14 +9,12 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="min-h-screen flex">
-      <WaveBackground />
-
-      {/* Desktop sidebar */}
+    <div className="min-h-screen flex bg-[#F8FAFC]">
+      {/* Desktop sidebar — dark navy */}
       <Sidebar />
 
-      {/* Main content */}
-      <main className="flex-1 flex flex-col min-h-screen lg:py-4 lg:pr-4 pb-20 lg:pb-4">
+      {/* Main content area */}
+      <main className="flex-1 flex flex-col min-h-screen pb-20 lg:pb-0 overflow-x-hidden">
         {children}
       </main>
 

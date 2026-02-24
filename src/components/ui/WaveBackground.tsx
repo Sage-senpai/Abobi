@@ -1,52 +1,71 @@
 "use client";
 
+/* Hero background for the landing / connect page — clean, professional */
 export function WaveBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-      {/* Deep gradient base */}
-      <div className="absolute inset-0 bg-gradient-to-br from-abobi-midnight via-[#1a0640] to-black" />
+      {/* Base gradient — very light warm white */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#F8FAFC] via-white to-[#FEF2F2]" />
 
-      {/* Slow wave layer 1 */}
-      <svg
-        className="absolute bottom-0 left-0 w-full opacity-20"
-        style={{ animation: "wave-slow 8s ease-in-out infinite" }}
-        viewBox="0 0 1440 320"
-        preserveAspectRatio="none"
-      >
-        <path
-          fill="rgba(107,70,193,0.4)"
-          d="M0,160L48,144C96,128,192,96,288,106.7C384,117,480,171,576,186.7C672,203,768,181,864,165.3C960,149,1056,139,1152,149.3C1248,160,1344,192,1392,208L1440,224L1440,320L0,320Z"
-        />
-      </svg>
-
-      {/* Medium wave layer 2 */}
-      <svg
-        className="absolute bottom-0 left-0 w-full opacity-15"
-        style={{ animation: "wave-med 6s ease-in-out infinite" }}
-        viewBox="0 0 1440 320"
-        preserveAspectRatio="none"
-      >
-        <path
-          fill="rgba(124,58,237,0.35)"
-          d="M0,224L60,213.3C120,203,240,181,360,181.3C480,181,600,203,720,213.3C840,224,960,224,1080,208C1200,192,1320,160,1380,144L1440,128L1440,320L0,320Z"
-        />
-      </svg>
-
-      {/* Ambient purple glow orbs */}
+      {/* Subtle red glow top-right */}
       <div
-        className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10"
+        className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full"
         style={{
-          background: "radial-gradient(circle, rgba(124,58,237,1) 0%, transparent 70%)",
-          animation: "pulse-glow 4s ease-in-out infinite",
-          filter: "blur(40px)",
+          background: "radial-gradient(circle, rgba(220,38,38,0.06) 0%, transparent 70%)",
+          filter: "blur(60px)",
+          animation: "float 8s ease-in-out infinite",
         }}
       />
+
+      {/* Subtle dark glow bottom-left */}
       <div
-        className="absolute bottom-1/3 right-1/4 w-64 h-64 rounded-full opacity-8"
+        className="absolute -bottom-20 -left-20 w-[400px] h-[400px] rounded-full"
         style={{
-          background: "radial-gradient(circle, rgba(107,70,193,1) 0%, transparent 70%)",
-          animation: "pulse-glow 6s ease-in-out infinite 2s",
-          filter: "blur(30px)",
+          background: "radial-gradient(circle, rgba(15,23,42,0.04) 0%, transparent 70%)",
+          filter: "blur(50px)",
+          animation: "float 10s ease-in-out infinite 2s",
+        }}
+      />
+
+      {/* Decorative geometric grid */}
+      <svg
+        className="absolute inset-0 w-full h-full opacity-[0.025]"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#0F172A" strokeWidth="0.8" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+      </svg>
+
+      {/* Accent arc bottom */}
+      <svg
+        className="absolute bottom-0 left-0 w-full"
+        viewBox="0 0 1440 180"
+        preserveAspectRatio="none"
+        style={{ opacity: 0.04 }}
+      >
+        <path
+          fill="#DC2626"
+          d="M0,100 C360,180 1080,20 1440,100 L1440,180 L0,180 Z"
+        />
+      </svg>
+    </div>
+  );
+}
+
+/* Sidebar background — dark navy */
+export function SidebarBackground() {
+  return (
+    <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 bg-[#0F172A]" />
+      <div
+        className="absolute top-0 left-0 w-64 h-64 rounded-full opacity-10"
+        style={{
+          background: "radial-gradient(circle, rgba(220,38,38,0.4) 0%, transparent 70%)",
+          filter: "blur(40px)",
         }}
       />
     </div>
