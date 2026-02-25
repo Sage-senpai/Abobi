@@ -1,7 +1,6 @@
 "use client";
 
 import { ConnectButton as RainbowConnectButton } from "@rainbow-me/rainbowkit";
-import { GradientButton } from "@/components/ui/GradientButton";
 
 export function ConnectButton() {
   return (
@@ -26,21 +25,24 @@ export function ConnectButton() {
             })}
           >
             {!connected ? (
-              <GradientButton size="lg" onClick={openConnectModal} disabled={!ready}>
+              <button
+                onClick={openConnectModal}
+                disabled={!ready}
+                className="px-4 py-2 bg-[#DC2626] text-white text-sm font-semibold rounded-xl hover:bg-[#B91C1C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-red-200"
+              >
                 Connect Wallet
-              </GradientButton>
+              </button>
             ) : chain.unsupported ? (
-              <GradientButton
-                size="md"
+              <button
                 onClick={openChainModal}
-                className="from-red-700 to-red-500"
+                className="px-4 py-2 bg-amber-500 text-white text-sm font-semibold rounded-xl hover:bg-amber-600 transition-colors shadow-sm"
               >
                 Wrong Network
-              </GradientButton>
+              </button>
             ) : (
               <button
                 onClick={openAccountModal}
-                className="glass-sm px-4 py-2 text-sm font-medium text-white flex items-center gap-2 transition-all hover:bg-white/10"
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#0F172A] hover:border-[#DC2626] hover:text-[#DC2626] transition-all shadow-sm"
               >
                 {chain.hasIcon && chain.iconUrl && (
                   <img
@@ -49,7 +51,10 @@ export function ConnectButton() {
                     className="w-4 h-4 rounded-full"
                   />
                 )}
-                {account.displayName}
+                <span className="max-w-[120px] truncate">{account.displayName}</span>
+                <svg className="w-3 h-3 text-[#94A3B8]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
             )}
           </div>

@@ -13,33 +13,37 @@ export function ChatBubble({ message, index }: ChatBubbleProps) {
 
   return (
     <motion.div
-      className={`flex ${isUser ? "justify-end" : "justify-start"} mb-3`}
-      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+      className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}
+      initial={{ opacity: 0, y: 12, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.3, delay: Math.min(index * 0.03, 0.3) }}
+      transition={{ duration: 0.3, delay: Math.min(index * 0.02, 0.25) }}
     >
-      {/* Avatar — assistant only */}
+      {/* AI avatar */}
       {!isUser && (
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-abobi-purple to-abobi-glow flex items-center justify-center text-xs font-bold text-white mr-2 mt-1 flex-shrink-0">
-          A
+        <div className="w-8 h-8 rounded-xl bg-[#DC2626] flex items-center justify-center flex-shrink-0 mr-2.5 mt-0.5 shadow-sm shadow-red-200">
+          <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
         </div>
       )}
 
-      <div
-        className={`max-w-[78%] px-4 py-3 rounded-2xl leading-relaxed text-sm ${
-          isUser
-            ? "bg-gradient-to-br from-abobi-purple to-abobi-glow text-white rounded-br-sm"
-            : "glass-sm text-white/90 rounded-bl-sm glow-sm"
-        }`}
-      >
-        {message.content}
+      <div className="flex flex-col max-w-[78%]">
+        <div
+          className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+            isUser
+              ? "bg-[#0F172A] text-white rounded-br-sm shadow-sm"
+              : "bg-white text-[#0F172A] border border-[#E2E8F0] rounded-bl-sm shadow-sm"
+          }`}
+        >
+          <p className="whitespace-pre-wrap">{message.content}</p>
+        </div>
         <p
-          className={`text-[10px] mt-1.5 ${
-            isUser ? "text-white/50 text-right" : "text-white/30"
+          className={`text-[10px] mt-1 ${
+            isUser ? "text-[#94A3B8] text-right" : "text-[#94A3B8]"
           }`}
         >
           {message.timestamp
-            ? new Date(message.timestamp).toLocaleTimeString("en-NG", {
+            ? new Date(message.timestamp).toLocaleTimeString("en-US", {
                 hour: "2-digit",
                 minute: "2-digit",
               })

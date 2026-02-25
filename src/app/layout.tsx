@@ -6,9 +6,9 @@ import "./globals.css";
 // CSS --font-sans falls back to system-ui in globals.css.
 
 export const metadata: Metadata = {
-  title: "Abobi — Your Pidgin AI Bro",
+  title: "Abobi Legal — AI Immigration Advisor",
   description:
-    "Abobi na decentralized Pidgin-speaking AI bro. Privacy-first, Web3-native, culturally yours.",
+    "Multilingual AI immigration advisor. Get guidance on visas, asylum, work permits, and family reunification — powered by 0G decentralized compute.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icons/icon-192.png",
@@ -16,13 +16,13 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Abobi",
+    statusBarStyle: "default",
+    title: "Abobi Legal",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#4C1D95",
+  themeColor: "#DC2626",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -36,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body className="antialiased">
         <ErrorBoundary>
           <ClientProviders>{children}</ClientProviders>
