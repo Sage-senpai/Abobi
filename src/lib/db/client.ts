@@ -1,8 +1,8 @@
 import path from "path";
 import fs from "fs";
 import type Database from "better-sqlite3";
-import { SCHEMA_SQL, type StorageIndexRow } from "./schema";
-import type { StorageIndex } from "@/types/storage";
+import { SCHEMA_SQL, type StorageIndexRow, type DocumentRow } from "./schema";
+import type { StorageIndex, UserDocument } from "@/types/storage";
 
 // ─── Lazy singleton ───────────────────────────────────────────────────────────
 let _db: Database.Database | null = null;
@@ -67,4 +67,52 @@ export function upsertStorageIndex(
        profile_root_hash = excluded.profile_root_hash,
        updated_at        = excluded.updated_at`
   ).run(walletAddress, historyRootHash, profileRootHash, Date.now());
+}
+
+// ─── Document helpers ─────────────────────────────────────────────────────────
+function rowToDocument(row: DocumentRow): UserDocument {
+  return {
+    id: row.id,
+    walletAddress: row.wallet_address,
+    name: row.name,
+    size: row.size,
+    mimeType: row.mime_type,
+    rootHash: row.root_hash,
+    uploadedAt: row.uploaded_at,
+    verified: row.verified === 1,
+  };
+}
+
+export function insertDocument(doc: UserDocument): void {
+  const db = getDb();
+  db.prepare(
+    `INSERT OR IGNORE INTO documents
+       (id, wallet_address, name, size, mime_type, root_hash, uploaded_at, verified)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    doc.id,
+    doc.walletAddress,
+    doc.name,
+    doc.size,
+    doc.mimeType,
+    doc.rootHash,
+    doc.uploadedAt,
+    doc.verified ? 1 : 0
+  );
+}
+
+export function getDocuments(walletAddress: string): UserDocument[] {
+  const db = getDb();
+  const rows = db
+    .prepare("SELECT * FROM documents WHERE wallet_address = ? ORDER BY uploaded_at DESC")
+    .all(walletAddress) as DocumentRow[];
+  return rows.map(rowToDocument);
+}
+
+export function deleteDocument(id: string, walletAddress: string): boolean {
+  const db = getDb();
+  const result = db
+    .prepare("DELETE FROM documents WHERE id = ? AND wallet_address = ?")
+    .run(id, walletAddress);
+  return (result.changes ?? 0) > 0;
 }
