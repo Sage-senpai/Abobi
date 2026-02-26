@@ -76,11 +76,11 @@ body {
   border-radius: 1rem;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 16px rgba(15, 23, 42, 0.04);
   transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-}
-@utility card-hover:hover {
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10), 0 16px 40px rgba(15, 23, 42, 0.08);
-  border-color: #CBD5E1;
-  transform: translateY(-1px);
+  &:hover {
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10), 0 16px 40px rgba(15, 23, 42, 0.08);
+    border-color: #CBD5E1;
+    transform: translateY(-1px);
+  }
 }
 
 /* ─── Accent glow ────────────────────────────────────────────────────── */
