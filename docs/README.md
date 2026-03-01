@@ -1,6 +1,9 @@
-# Abobi
+# Abobi Legal — Technical Documentation
 
-> Your decentralized Pidgin AI bro, powered by 0G Network.
+> AI-powered immigration legal guidance for underserved communities worldwide.
+> Built on 0G decentralized compute + storage.
+
+---
 
 ## Quick Start
 
@@ -8,155 +11,261 @@
 
 - Node.js >= 22.0.0
 - pnpm >= 10
-- MetaMask or compatible EVM wallet
-- Funded 0G testnet server wallet (see Environment Setup)
+- MetaMask or compatible EVM wallet (optional — Demo Mode works without one)
+- Funded 0G Galileo testnet server wallet
 
 ### 2. Install Dependencies
 
 ```bash
 pnpm install
-pnpm rebuild better-sqlite3
+pnpm rebuild better-sqlite3   # compile native SQLite bindings
 ```
 
 ### 3. Environment Variables
-
-Copy the example and fill in values:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Required values:
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_0G_RPC_URL` | Yes | `https://evmrpc-testnet.0g.ai` |
+| `NEXT_PUBLIC_0G_CHAIN_ID` | Yes | `16602` |
+| `OG_INDEXER_RPC` | Yes | `https://indexer-storage-testnet-standard.0g.ai` |
+| `OG_SERVER_PRIVATE_KEY` | Yes | Funded testnet wallet — pays for all compute + storage |
+| `OG_COMPUTE_PROVIDER_ADDRESS` | Yes | Discovered via CLI (see below) |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | No | Enables QR code wallet connection on mobile |
+| `NEXT_PUBLIC_APP_URL` | No | Production URL (e.g. `https://abobi.vercel.app`) |
 
-```env
-# 0G Galileo Testnet RPC
-NEXT_PUBLIC_0G_RPC_URL=https://evmrpc-testnet.0g.ai
-NEXT_PUBLIC_0G_CHAIN_ID=16602
-
-# 0G Storage indexer
-OG_INDEXER_RPC=https://indexer-storage-testnet-standard.0g.ai
-
-# Server wallet private key — fund at https://faucet.0g.ai (0.1 0G/day)
-OG_SERVER_PRIVATE_KEY=0x...
-
-# 0G Compute provider address — discover via CLI below
-OG_COMPUTE_PROVIDER_ADDRESS=0x...
-
-# WalletConnect (optional, enables mobile QR)
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=...
-```
+> **Do NOT set `DATABASE_PATH`** on Vercel — SQLite auto-uses `/tmp/abobi.db`.
 
 ### 4. Discover a Compute Provider
 
 ```bash
-# Install CLI globally
-pnpm add @0glabs/0g-serving-broker -g
-
-# Setup network connection
-0g-compute-cli setup-network
-
-# Fund your account (uses OG_SERVER_PRIVATE_KEY)
-0g-compute-cli deposit --amount 10
+# Fund your server account on 0G
+npx @0glabs/0g-serving-broker setup-network
+npx @0glabs/0g-serving-broker deposit --amount 10
 
 # List available inference providers
-0g-compute-cli inference list-providers
+npx @0glabs/0g-serving-broker inference list-providers
 
-# Pick a provider and acknowledge it (one-time)
-0g-compute-cli inference acknowledge-provider --provider 0x_PROVIDER_ADDRESS
+# Acknowledge provider (one-time, required before inference)
+npx @0glabs/0g-serving-broker inference acknowledge-provider \
+  --provider 0x_PROVIDER_ADDRESS
 ```
 
-Copy the provider address into `OG_COMPUTE_PROVIDER_ADDRESS` in `.env.local`.
+Copy the provider address into `OG_COMPUTE_PROVIDER_ADDRESS`.
 
-### 5. Run Development Server
+### 5. Run
 
 ```bash
-pnpm dev
+pnpm dev      # http://localhost:3000
+pnpm build    # production build
+pnpm start    # serve production
 ```
 
-Open [http://localhost:3000](http://localhost:3000) on mobile viewport (375px).
+---
 
-## Architecture
+## Project Structure
 
 ```
 src/
 ├── app/
-│   ├── (auth)/connect/      # Wallet connect landing
-│   ├── (app)/               # Auth-gated app (wallet required)
-│   │   ├── page.tsx         # Home screen
-│   │   ├── chat/page.tsx    # Chat interface
-│   │   └── dashboard/page.tsx # Analytics dashboard
+│   ├── (auth)/
+│   │   └── connect/page.tsx     # Split-screen landing (wallet or Demo Mode)
+│   ├── (app)/                   # Auth-gated — wallet or demo required
+│   │   ├── page.tsx             # Immigration Hub home
+│   │   ├── chat/page.tsx        # AI Advisor chat interface
+│   │   ├── documents/page.tsx   # Document Vault (0G upload)
+│   │   ├── resources/page.tsx   # Country immigration guides
+│   │   └── dashboard/page.tsx   # Activity graph + streak
 │   ├── api/
-│   │   ├── chat/route.ts    # POST: run inference + save history
-│   │   ├── history/route.ts # GET: load chat history from 0G
-│   │   └── profile/route.ts # GET: user profile + streak
-│   └── providers.tsx        # Wagmi + RainbowKit + TanStack Query
+│   │   ├── chat/route.ts        # POST: inference + save history to 0G
+│   │   ├── history/route.ts     # GET: load history from 0G Storage
+│   │   ├── profile/route.ts     # GET: user profile + streak
+│   │   ├── setup/route.ts       # GET/PUT: account initialization
+│   │   ├── upload/route.ts      # POST: multipart file upload to 0G
+│   │   └── documents/route.ts   # GET/DELETE: document list management
+│   ├── layout.tsx               # Root layout + Open Graph meta
+│   └── providers.tsx            # Wagmi + RainbowKit + TanStack Query
 ├── components/
-│   ├── chat/                # ChatBubble, ChatInput, ChatThread
-│   ├── home/                # GreetingCard, StreakCard, MemoryCard, ActivityGraph
-│   ├── layout/              # AppShell, BottomNav (mobile), Sidebar (desktop)
-│   ├── wallet/              # ConnectButton, WalletGuard
-│   └── ui/                  # GlassCard, GradientButton, WaveBackground, LoadingDots
-├── hooks/                   # useChat, useHistory, useProfile, useStreak
+│   ├── chat/
+│   │   ├── ChatBubble.tsx       # User/AI message bubble
+│   │   ├── ChatInput.tsx        # Textarea + quick prompts + send button
+│   │   └── ChatThread.tsx       # Scrollable message list
+│   ├── home/
+│   │   ├── GreetingCard.tsx     # AI avatar + greeting + status bar
+│   │   ├── StreakCard.tsx       # Daily streak counter
+│   │   ├── MemoryCard.tsx       # Conversation count
+│   │   └── ActivityGraph.tsx    # 7-day bar chart of message activity
+│   ├── immigration/
+│   │   ├── QuickActions.tsx     # 4-card action grid (Chat, Documents, Resources, Checklist)
+│   │   ├── PolicyAlertsStrip.tsx # Horizontal scrolling policy updates
+│   │   ├── EligibilityQuiz.tsx  # 4-step eligibility quiz modal
+│   │   └── DocumentChecklist.tsx # Country + visa-type document checklist modal
+│   ├── layout/
+│   │   ├── AppShell.tsx         # Root layout: sidebar + content + bottom nav
+│   │   ├── Sidebar.tsx          # Desktop dark-navy sidebar (5 items)
+│   │   └── BottomNav.tsx        # Mobile bottom navigation (5 items)
+│   ├── wallet/
+│   │   └── ConnectButton.tsx    # RainbowKit connect button (white/red styled)
+│   └── ui/
+│       ├── GlassCard.tsx        # White card with border + shadow (motion-ready)
+│       ├── GradientButton.tsx   # Red primary action button
+│       ├── WaveBackground.tsx   # SVG animated wave for connect page
+│       └── LoadingDots.tsx      # Animated loading indicator
+├── hooks/
+│   ├── useWallet.ts             # address, isDemo, chain helpers
+│   ├── useChat.ts               # send message, loading, error state
+│   ├── useHistory.ts            # TanStack Query: load chat history
+│   ├── useProfile.ts            # TanStack Query: load user profile
+│   └── useStreak.ts             # Streak calculation helper
 ├── lib/
-│   ├── 0g/storage.ts        # 0G Storage SDK wrapper
-│   ├── 0g/compute.ts        # 0G Compute broker wrapper
-│   ├── db/client.ts         # SQLite root-hash index
-│   ├── abobi/prompt.ts      # Abobi system prompt
-│   ├── abobi/streak.ts      # Streak calculation logic
-│   └── crypto/index.ts      # EncryptionProvider interface (V1: plaintext)
-├── store/                   # Zustand (chatStore, userStore)
-└── types/                   # TypeScript interfaces
+│   ├── 0g/
+│   │   ├── compute.ts           # 0G Compute broker (require() for CJS compat)
+│   │   └── storage.ts           # 0G Storage SDK (require() for CJS compat)
+│   ├── db/
+│   │   ├── client.ts            # SQLite: storage index + document CRUD
+│   │   └── schema.ts            # Table definitions + TypeScript row types
+│   └── abobi/
+│       ├── prompt.ts            # Immigration AI system prompt + model config
+│       └── streak.ts            # Streak calculation + profile helpers
+├── store/
+│   ├── chatStore.ts             # Zustand: in-memory message list
+│   ├── userStore.ts             # Zustand: wallet address sync
+│   └── demoStore.ts             # Zustand + persist: demo mode flag
+└── types/
+    ├── chat.ts                  # ChatMessage, InferenceMessage
+    └── storage.ts               # StorageIndex, UploadResult, UserDocument
 ```
 
-## 0G Network Configuration
+---
+
+## 0G Network Reference
 
 | Parameter | Value |
 |-----------|-------|
 | Chain ID | 16602 |
-| RPC | https://evmrpc-testnet.0g.ai |
-| Explorer | https://chainscan-galileo.0g.ai |
-| Storage Explorer | https://storagescan-galileo.0g.ai |
-| Faucet | https://faucet.0g.ai (0.1 0G/day) |
-| Inference Model | qwen-2.5-7b-instruct |
+| Network Name | 0G Galileo Testnet |
+| RPC | `https://evmrpc-testnet.0g.ai` |
+| Explorer | `https://chainscan-galileo.0g.ai` |
+| Storage Explorer | `https://storagescan-galileo.0g.ai` |
+| Faucet | `https://faucet.0g.ai` (0.1 0G/day) |
+| Inference Model | `qwen/qwen-2.5-7b-instruct` |
+| Context Window | 12 recent messages |
+| Max Tokens | 800 per response |
+| Temperature | 0.65 |
 
-## Storage Strategy
+---
 
-Chat history is stored as JSONL on 0G decentralized storage. A local SQLite database
-acts as a root-hash index (wallet_address → root_hash mapping). This means:
+## Storage Architecture
 
-- History survives server restarts
-- Content is fully portable — any node can serve it by root hash
-- V2 will add AES-256-GCM encryption before upload
+### Chat History
+Chat messages are serialised as JSONL and uploaded to 0G Storage via `ZgFile`. The Merkle root hash is stored in SQLite (`storage_index` table). On each new message, the full updated history is re-uploaded and the root hash updated.
+
+### Document Vault
+Each uploaded file is sent to 0G via `ZgFile`. The resulting root hash plus metadata (name, size, MIME type, timestamp) is stored in the `documents` SQLite table. The 0G content is permanent — deleting a record only removes the metadata index entry.
+
+### SQLite Tables
+
+```sql
+-- Root hash index for chat history + profile
+CREATE TABLE storage_index (
+  wallet_address    TEXT PRIMARY KEY,
+  history_root_hash TEXT,
+  profile_root_hash TEXT,
+  updated_at        INTEGER NOT NULL
+);
+
+-- Document metadata index
+CREATE TABLE documents (
+  id             TEXT PRIMARY KEY,
+  wallet_address TEXT NOT NULL,
+  name           TEXT NOT NULL,
+  size           INTEGER NOT NULL,
+  mime_type      TEXT NOT NULL,
+  root_hash      TEXT NOT NULL UNIQUE,
+  uploaded_at    INTEGER NOT NULL,
+  verified       INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_documents_wallet ON documents(wallet_address);
+```
+
+---
+
+## Key Implementation Notes
+
+### ESM/CJS Interop
+`@0glabs/0g-ts-sdk` and `@0glabs/0g-serving-broker` ship CJS bundles but expose ESM entry points. Dynamic `import()` triggers Node.js ESM loader which cannot resolve named exports from CJS. Both SDKs must be loaded with `require()`:
+
+```ts
+const { ZgFile, Indexer } = require("@0glabs/0g-ts-sdk") as typeof import("@0glabs/0g-ts-sdk");
+const { createZGComputeNetworkBroker } = require("@0glabs/0g-serving-broker") as typeof import("@0glabs/0g-serving-broker");
+```
+
+Both packages are listed in `serverExternalPackages` in `next.config.ts` to prevent webpack bundling.
+
+### SQLite on Vercel
+Vercel serverless functions can only write to `/tmp`. `client.ts` auto-detects the `VERCEL` environment variable:
+
+```ts
+const defaultPath = process.env.VERCEL ? "/tmp/abobi.db" : "./data/abobi.db";
+```
+
+Do not set `DATABASE_PATH` in the Vercel dashboard — it will override this logic.
+
+### Broker Pattern
+The 0G Compute broker is initialized lazily and cached:
+
+```ts
+// broker.inference.getRequestHeaders(providerAddress, body)
+// broker.inference.processResponse(providerAddress, chatId, content)
+// broker.ledger.depositFund(amount)
+```
+
+The `ServingRequestHeaders` type must be cast as `unknown as Record<string, string>` when used as fetch headers.
+
+---
 
 ## Deployment
 
-### Vercel
+### Vercel (Recommended)
 
 ```bash
 pnpm build
 vercel --prod
 ```
 
-Set all env vars in Vercel dashboard. Note: `better-sqlite3` requires a Linux build environment — this works on Vercel's Node.js runtime.
+Required Vercel settings:
+- Framework: Next.js
+- Node version: 22.x
+- Build command: `pnpm build`
+- Do NOT set `DATABASE_PATH`
 
 ### Docker (Self-hosted)
 
 ```dockerfile
 FROM node:22-alpine
 WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install
 COPY . .
-RUN npm install -g pnpm
-RUN pnpm install
+RUN pnpm rebuild better-sqlite3
 RUN pnpm build
 EXPOSE 3000
 CMD ["pnpm", "start"]
 ```
 
+Mount a persistent volume at `/app/data` for SQLite persistence across container restarts.
+
+---
+
 ## Known Trade-offs (V1)
 
-| Trade-off | Decision | Future |
-|-----------|----------|--------|
-| Storage index | SQLite (centralized) | On-chain mapping (V2) |
-| Inference payment | Server wallet pays | User wallet pays (V2) |
-| Encryption | Plaintext | AES-256-GCM (V2) |
-| Response format | Batch | SSE streaming (V2) |
+| Trade-off | Current Decision | V2 Plan |
+|-----------|-----------------|---------|
+| Storage index | SQLite (centralized, ephemeral on Vercel) | Persistent volume or on-chain mapping |
+| Inference payment | Server wallet pays for all users | User wallet pays via micropayments |
+| Document encryption | Plaintext on 0G | AES-256-GCM with wallet-derived key |
+| AI responses | Batch (full response at once) | SSE streaming |
+| Document content on delete | Hash persists on 0G (content-addressed) | Acceptable — only metadata index removed |

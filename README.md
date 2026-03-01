@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Abobi Legal
 
-## Getting Started
+> AI-powered immigration legal guidance for underserved communities worldwide.
 
-First, run the development server:
+**Abobi Legal** is a multilingual immigration legal aid platform built on 0G decentralized infrastructure. It gives immigrants, refugees, and international professionals free, confidential AI guidance — covering visas, asylum, work permits, family reunification, and more — in 7+ languages, with tamper-proof blockchain document storage.
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js >= 22.0.0
+- pnpm >= 10
+- MetaMask or compatible EVM wallet (or use Demo Mode — no wallet needed)
+- Funded 0G Galileo testnet server wallet
+
+### Install
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm rebuild better-sqlite3
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Required env vars:
 
-## Learn More
+```env
+# 0G Galileo Testnet
+NEXT_PUBLIC_0G_RPC_URL=https://evmrpc-testnet.0g.ai
+NEXT_PUBLIC_0G_CHAIN_ID=16602
 
-To learn more about Next.js, take a look at the following resources:
+# 0G Storage indexer
+OG_INDEXER_RPC=https://indexer-storage-testnet-standard.0g.ai
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Server wallet private key (pays compute + storage on behalf of users)
+OG_SERVER_PRIVATE_KEY=0x...
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# 0G Compute provider address
+OG_COMPUTE_PROVIDER_ADDRESS=0x...
 
-## Deploy on Vercel
+# WalletConnect (optional — enables QR code on mobile)
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=...
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Run
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm dev       # development server (localhost:3000)
+pnpm build     # production build
+pnpm start     # serve production build
+```
+
+---
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| AI Immigration Advisor | Multilingual AI guided by USCIS, IRCC, UK Home Office, UNHCR |
+| Document Vault | Drag-drop upload to 0G blockchain — tamper-proof, verifiable by lawyers |
+| Eligibility Quiz | 4-step interactive quiz for instant visa eligibility assessment |
+| Document Checklists | Country + visa-type specific document requirement lists |
+| Policy Alerts | Strip of recent immigration policy changes and deadlines |
+| Resources Hub | Country guides: US, UK, Canada, EU, Australia, UAE, Japan, Nigeria + more |
+| Dashboard | Activity graph, daily streak, session stats |
+| Demo Mode | Full app preview without a wallet — zero friction onboarding |
+| Multilingual | English, Spanish, French, Hausa, Yoruba, Igbo, Portuguese + auto-detect |
+
+---
+
+## Stack
+
+- **Framework**: Next.js 15.5 (App Router), React 19
+- **CSS**: Tailwind v4 with `@theme inline` design tokens
+- **Auth**: Wagmi v2 + RainbowKit v2 — 0G Galileo (Chain ID 16602)
+- **AI**: `qwen/qwen-2.5-7b-instruct` via 0G Compute Network
+- **Storage**: `@0glabs/0g-ts-sdk` — content-addressed decentralized file storage
+- **DB**: better-sqlite3 — root-hash index + document metadata
+- **State**: Zustand + TanStack Query
+- **Animation**: Framer Motion
+
+---
+
+## Deployment (Vercel)
+
+```bash
+pnpm build
+vercel --prod
+```
+
+Set all env vars in Vercel dashboard. Do **not** set `DATABASE_PATH` — SQLite automatically uses `/tmp` on Vercel serverless.
+
+See [docs/README.md](docs/README.md) for full architecture, API reference, and deployment details.
