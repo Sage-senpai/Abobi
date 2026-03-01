@@ -49,6 +49,16 @@ const NAV_ITEMS = [
     ),
   },
   {
+    label: "Lawyers",
+    href: "/lawyers",
+    tooltip: "Find verified immigration lawyers",
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+      </svg>
+    ),
+  },
+  {
     label: "Dashboard",
     href: "/dashboard",
     tooltip: "Your case history and statistics",
@@ -69,7 +79,7 @@ export function Sidebar() {
   const { address, isDemo } = useWallet();
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-[#0F172A] border-r border-[#1E293B] flex-shrink-0">
+    <aside className="hidden lg:flex flex-col w-64 h-screen bg-[#0F172A] border-r border-[#1E293B] flex-shrink-0 overflow-y-auto">
       {/* Brand */}
       <div className="px-6 py-6 border-b border-[#1E293B]">
         <div className="flex items-center gap-3">

@@ -9,12 +9,12 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC]">
-      {/* Desktop sidebar — dark navy */}
+    <div className="h-screen flex overflow-hidden bg-[#F8FAFC]">
+      {/* Desktop sidebar — dark navy, sticky */}
       <Sidebar />
 
-      {/* Main content area */}
-      <main className="flex-1 flex flex-col min-h-screen pb-20 lg:pb-0 overflow-x-hidden">
+      {/* Main content area — scrolls independently */}
+      <main className="flex-1 flex flex-col overflow-y-auto pb-20 lg:pb-0">
         {children}
       </main>
 
