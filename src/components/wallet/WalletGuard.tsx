@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
-import { LoadingDots } from "@/components/ui/LoadingDots";
 import { useDemoStore } from "@/store/demoStore";
 
 interface WalletGuardProps {
@@ -15,12 +14,12 @@ export function WalletGuard({ children }: WalletGuardProps) {
   const isDemoMode = useDemoStore((s) => s.isDemoMode);
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Redirect to /connect when wallet is disconnected
   useEffect(() => {
     if (isDemoMode) return;
     if (mounted && status === "disconnected") {
@@ -28,42 +27,19 @@ export function WalletGuard({ children }: WalletGuardProps) {
     }
   }, [mounted, status, isDemoMode, router]);
 
-  useEffect(() => {
-    if (isDemoMode) return;
-    if (!mounted || (status !== "connecting" && status !== "reconnecting")) {
-      setTimedOut(false);
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setTimedOut(true);
-      router.replace("/connect");
-    }, 8000);
-
-    return () => window.clearTimeout(timeout);
-  }, [mounted, status, isDemoMode, router]);
-
   // Demo mode bypasses all wallet checks
   if (isDemoMode) return <>{children}</>;
 
-  // Show spinner until mounted + not in a transitional state
-  if (!mounted || ((status === "connecting" || status === "reconnecting") && !timedOut)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
-        <div className="flex flex-col items-center gap-4 text-[#64748B]">
-          <LoadingDots size="md" />
-          <span className="text-sm">
-            {status === "reconnecting" ? "Restoring wallet session..." : "Connecting wallet..."}
-          </span>
-        </div>
-      </div>
-    );
-  }
+  // Not yet mounted — render nothing to avoid hydration mismatch
+  if (!mounted) return null;
 
-  // Redirect in progress — render nothing
-  if (status === "disconnected") {
-    return null;
-  }
+  // Disconnected — redirect in progress
+  if (status === "disconnected") return null;
 
+  // Connected, reconnecting, or connecting — render children optimistically.
+  // "reconnecting" means wagmi found a persisted session and is restoring it,
+  // so we show the app immediately instead of a blocking spinner.
+  // If reconnection ultimately fails, status becomes "disconnected" and the
+  // useEffect above redirects to /connect.
   return <>{children}</>;
 }
