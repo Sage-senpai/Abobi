@@ -5,15 +5,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/hooks/useWallet";
 import { nanoid } from "nanoid";
 import { useChatStore } from "@/store/chatStore";
-import type { ChatMessage } from "@/types/chat";
+import type { ChatMessage, ChatSource } from "@/types/chat";
 
 interface SSEEvent {
-  type: "start" | "chunk" | "done" | "error";
+  type: "start" | "chunk" | "done" | "error" | "sources";
   content?: string;
   message?: ChatMessage;
   assistantId?: string;
   userMessageId?: string;
   error?: string;
+  sources?: ChatSource[];
 }
 
 async function* readSSE(response: Response): AsyncGenerator<SSEEvent, void, unknown> {
@@ -105,12 +106,15 @@ export function useChat() {
           if (ev.type === "chunk" && ev.content) {
             received += ev.content;
             appendToMessage(assistantMsg.id, ev.content);
+          } else if (ev.type === "sources" && ev.sources) {
+            updateMessage(assistantMsg.id, { sources: ev.sources });
           } else if (ev.type === "done" && ev.message) {
             updateMessage(assistantMsg.id, {
               id: ev.message.id,
               content: ev.message.content,
               provider: ev.message.provider,
               timestamp: ev.message.timestamp,
+              sources: ev.message.sources,
             });
           } else if (ev.type === "error") {
             throw new Error(ev.error ?? "Stream error");

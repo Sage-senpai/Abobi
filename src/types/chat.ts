@@ -1,5 +1,14 @@
 export type MessageRole = "user" | "assistant";
 
+export interface ChatSource {
+  citation: number;
+  country: string;
+  flag: string;
+  articleTitle: string;
+  label: string;
+  url: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -7,6 +16,7 @@ export interface ChatMessage {
   timestamp: number; // Unix ms
   /** Which inference provider served this response — for transparency + judge verification */
   provider?: string; // "0g-compute-direct" | "0g-broker" | "groq-fallback" | on-chain provider address
+  sources?: ChatSource[];
 }
 
 export interface ChatSession {

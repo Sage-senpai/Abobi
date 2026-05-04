@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCaseStore } from "@/store/caseStore";
+import { useWallet } from "@/hooks/useWallet";
 import {
   CASE_STATUSES,
   CASE_STATUS_LABELS,
@@ -327,10 +328,137 @@ function CreateCaseModal({ onClose }: { onClose: () => void }) {
           Create case
         </button>
         <p className="text-[#94A3B8] text-[10px] text-center mt-2">
-          Stored locally on your device. Cloud sync to 0G Storage coming soon.
+          Stored locally on your device. Sync to 0G from the cases page to make it portable.
         </p>
       </motion.div>
     </motion.div>
+  );
+}
+
+function SyncBar() {
+  const { address, isDemo } = useWallet();
+  const cases = useCaseStore((s) => s.cases);
+  const replaceCases = useCaseStore((s) => s.replaceCases);
+  const lastSyncedAt = useCaseStore((s) => s.lastSyncedAt);
+  const setLastSyncedAt = useCaseStore((s) => s.setLastSyncedAt);
+  const [busy, setBusy] = useState<"push" | "pull" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pulledCount, setPulledCount] = useState<number | null>(null);
+
+  if (!address || isDemo) {
+    return (
+      <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
+        <svg className="w-4 h-4 text-amber-700 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p className="text-amber-900 text-xs leading-relaxed">
+          Cases are stored on this device only. <Link href="/connect" className="font-bold underline">Connect a wallet</Link> to sync to 0G Storage.
+        </p>
+      </div>
+    );
+  }
+
+  async function handlePush() {
+    if (busy) return;
+    setBusy("push");
+    setError(null);
+    try {
+      const res = await fetch("/api/cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress: address, cases }),
+      });
+      if (!res.ok) {
+        const errData = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(errData.error ?? "Sync failed");
+      }
+      setLastSyncedAt(Date.now());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sync failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handlePull() {
+    if (busy) return;
+    setBusy("pull");
+    setError(null);
+    setPulledCount(null);
+    try {
+      const res = await fetch(`/api/cases?wallet=${address}`);
+      if (!res.ok) {
+        const errData = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(errData.error ?? "Pull failed");
+      }
+      const data = (await res.json()) as { cases: VisaCase[] };
+      replaceCases(data.cases);
+      setPulledCount(data.cases.length);
+      setLastSyncedAt(Date.now());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Pull failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const lastSyncLabel = lastSyncedAt
+    ? new Date(lastSyncedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    : "never";
+
+  return (
+    <div className="mb-4 px-4 py-3 bg-[#0F172A] rounded-xl">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="relative flex w-2 h-2 flex-shrink-0">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          </span>
+          <p className="text-white text-xs font-bold">0G Storage Sync</p>
+          <p className="text-[#94A3B8] text-[10px]">
+            · Last sync: <span className="font-mono">{lastSyncLabel}</span>
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handlePull}
+            disabled={busy !== null}
+            className="px-3 py-1.5 bg-[#1E293B] text-white text-xs font-semibold rounded-lg hover:bg-[#334155] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+          >
+            {busy === "pull" ? (
+              <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+            )}
+            Pull
+          </button>
+          <button
+            onClick={handlePush}
+            disabled={busy !== null || cases.length === 0}
+            className="px-3 py-1.5 bg-[#DC2626] text-white text-xs font-semibold rounded-lg hover:bg-[#B91C1C] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+          >
+            {busy === "push" ? (
+              <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            )}
+            Sync to 0G
+          </button>
+        </div>
+      </div>
+      {error && (
+        <p className="text-red-400 text-[10px] mt-2">{error}</p>
+      )}
+      {pulledCount !== null && !error && (
+        <p className="text-green-400 text-[10px] mt-2">
+          Pulled {pulledCount} case{pulledCount === 1 ? "" : "s"} from 0G Storage
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -384,6 +512,9 @@ export default function CasesPage() {
             New case
           </button>
         </div>
+
+        {/* Sync bar */}
+        {hydrated && <SyncBar />}
 
         {/* Summary */}
         {hydrated && cases.length > 0 && (

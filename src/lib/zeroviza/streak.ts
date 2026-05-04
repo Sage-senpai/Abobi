@@ -43,5 +43,6 @@ export function createDefaultProfile(walletAddress: string): UserProfile {
     lastActiveDate: "",
     totalMessages: 0,
     createdAt: Date.now(),
+    cases: [],
   };
 }

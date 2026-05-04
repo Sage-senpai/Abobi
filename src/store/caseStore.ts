@@ -12,6 +12,9 @@ interface CaseState {
   updateCase: (id: string, patch: Partial<Omit<VisaCase, "id" | "events" | "createdAt">>) => void;
   deleteCase: (id: string) => void;
   getCase: (id: string) => VisaCase | undefined;
+  replaceCases: (cases: VisaCase[]) => void;
+  lastSyncedAt: number | null;
+  setLastSyncedAt: (ts: number) => void;
 }
 
 export const useCaseStore = create<CaseState>()(
@@ -65,6 +68,9 @@ export const useCaseStore = create<CaseState>()(
       deleteCase: (id) =>
         set((state) => ({ cases: state.cases.filter((c) => c.id !== id) })),
       getCase: (id) => get().cases.find((c) => c.id === id),
+      replaceCases: (cases) => set({ cases }),
+      lastSyncedAt: null,
+      setLastSyncedAt: (lastSyncedAt) => set({ lastSyncedAt }),
     }),
     {
       name: "zeroviza-cases",

@@ -3,8 +3,20 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { EMBASSIES, listRepresentingCountries, listHostCountries } from "@/data/embassies";
+import { useQuery } from "@tanstack/react-query";
 import type { Embassy } from "@/types/embassy";
+
+interface EmbassiesResponse {
+  embassies: Embassy[];
+  source: "0g" | "seed";
+  rootHash?: string;
+}
+
+async function fetchEmbassies(): Promise<EmbassiesResponse> {
+  const res = await fetch("/api/embassies");
+  if (!res.ok) throw new Error("Failed to load embassies");
+  return res.json() as Promise<EmbassiesResponse>;
+}
 
 const TYPE_LABELS: Record<Embassy["type"], string> = {
   embassy: "Embassy",
@@ -132,12 +144,27 @@ export default function EmbassiesPage() {
   const [representing, setRepresenting] = useState<string>("");
   const [host, setHost] = useState<string>("");
 
-  const representingCountries = useMemo(() => listRepresentingCountries(), []);
-  const hostCountries = useMemo(() => listHostCountries(), []);
+  const { data, isLoading } = useQuery({
+    queryKey: ["embassies"],
+    queryFn: fetchEmbassies,
+    staleTime: 5 * 60_000,
+  });
+
+  const embassies = data?.embassies ?? [];
+  const source = data?.source;
+
+  const representingCountries = useMemo(
+    () => Array.from(new Set(embassies.map((e) => e.representingCountry))).sort(),
+    [embassies]
+  );
+  const hostCountries = useMemo(
+    () => Array.from(new Set(embassies.map((e) => e.hostCountry))).sort(),
+    [embassies]
+  );
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    return EMBASSIES.filter((e) => {
+    return embassies.filter((e) => {
       if (representing && e.representingCountry !== representing) return false;
       if (host && e.hostCountry !== host) return false;
       if (q) {
@@ -146,7 +173,7 @@ export default function EmbassiesPage() {
       }
       return true;
     });
-  }, [query, representing, host]);
+  }, [query, representing, host, embassies]);
 
   const clearFilters = () => {
     setQuery("");
@@ -163,7 +190,15 @@ export default function EmbassiesPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
             <div>
-              <h1 className="text-2xl font-black text-[#0F172A]">Embassy &amp; Consulate Directory</h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl font-black text-[#0F172A]">Embassy &amp; Consulate Directory</h1>
+                {source === "0g" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#DC2626] bg-[#FEF2F2] border border-[#FECACA] rounded-full px-2 py-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626] animate-pulse" />
+                    Live from 0G
+                  </span>
+                )}
+              </div>
               <p className="text-[#64748B] text-sm mt-1">
                 Verified diplomatic missions with appointment links and direct hotlines
               </p>
@@ -227,7 +262,16 @@ export default function EmbassiesPage() {
         {/* Result count + clear */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-[#64748B] text-xs">
-            <span className="font-bold text-[#0F172A]">{filtered.length}</span> mission{filtered.length === 1 ? "" : "s"} found
+            {isLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="w-3 h-3 border-2 border-[#DC2626] border-t-transparent rounded-full animate-spin" />
+                Loading directory…
+              </span>
+            ) : (
+              <>
+                <span className="font-bold text-[#0F172A]">{filtered.length}</span> mission{filtered.length === 1 ? "" : "s"} found
+              </>
+            )}
           </p>
           {hasFilters && (
             <button

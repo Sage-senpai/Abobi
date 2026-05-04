@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { ChatMessage } from "@/types/chat";
+import type { ChatMessage, ChatSource } from "@/types/chat";
 
 function ProviderBadge({ provider }: { provider: string }) {
   const is0G =
@@ -27,6 +27,47 @@ function ProviderBadge({ provider }: { provider: string }) {
     );
   }
   return null;
+}
+
+function SourcesBlock({ sources }: { sources: ChatSource[] }) {
+  // De-duplicate by URL
+  const seen = new Set<string>();
+  const unique = sources.filter((s) => {
+    if (seen.has(s.url)) return false;
+    seen.add(s.url);
+    return true;
+  });
+  if (unique.length === 0) return null;
+
+  return (
+    <div className="mt-2 px-3 py-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl">
+      <p className="text-[10px] uppercase tracking-wider font-bold text-[#64748B] mb-1.5">
+        Sources from ZeroViza guides
+      </p>
+      <div className="space-y-1">
+        {unique.map((s) => (
+          <a
+            key={`${s.citation}-${s.url}`}
+            href={s.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-start gap-1.5 text-[11px] text-[#0F172A] hover:text-[#DC2626] transition-colors"
+          >
+            <span className="inline-flex w-4 h-4 rounded bg-[#DC2626]/10 text-[#DC2626] text-[9px] font-bold items-center justify-center flex-shrink-0 mt-0.5">
+              {s.citation}
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="font-semibold">{s.flag} {s.country}</span>
+              <span className="text-[#64748B]"> · {s.label}</span>
+            </span>
+            <svg className="w-3 h-3 text-[#94A3B8] flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 interface ChatBubbleProps {
@@ -63,6 +104,9 @@ export function ChatBubble({ message, index }: ChatBubbleProps) {
         >
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <SourcesBlock sources={message.sources} />
+        )}
         <div className={`flex items-center gap-2 mt-1 ${isUser ? "justify-end" : "justify-start"}`}>
           {!isUser && message.provider && (
             <ProviderBadge provider={message.provider} />

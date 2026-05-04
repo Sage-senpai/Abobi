@@ -408,11 +408,15 @@ async function* callGroqAPIStream(
  */
 export async function* streamFromZeroViza(
   userMessage: string,
-  contextHistory: InferenceMessage[] = []
+  contextHistory: InferenceMessage[] = [],
+  groundingContext = ""
 ): AsyncGenerator<StreamEvent, void, unknown> {
   const recentContext = contextHistory.slice(-INFERENCE_CONFIG.contextWindow);
+  const systemContent = groundingContext
+    ? ZEROVIZA_SYSTEM_PROMPT + groundingContext
+    : ZEROVIZA_SYSTEM_PROMPT;
   const messages: InferenceMessage[] = [
-    { role: "system", content: ZEROVIZA_SYSTEM_PROMPT },
+    { role: "system", content: systemContent },
     ...recentContext,
     { role: "user", content: userMessage },
   ];
