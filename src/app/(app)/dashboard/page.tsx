@@ -10,6 +10,18 @@ import { useHistory } from "@/hooks/useHistory";
 import { ActivityGraph } from "@/components/home/ActivityGraph";
 import { LoadingDots } from "@/components/ui/LoadingDots";
 import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useCaseStore } from "@/store/caseStore";
+import { CASE_STATUS_LABELS, type CaseStatus } from "@/types/case";
+
+const ACTIVE_STATUSES: CaseStatus[] = [
+  "preparing",
+  "submitted",
+  "biometrics-scheduled",
+  "interview-scheduled",
+  "additional-info-requested",
+  "appeal",
+];
 
 interface StatConfig {
   label: string;
@@ -61,6 +73,12 @@ export default function DashboardPage() {
   const streak = profileData?.streak.current ?? 0;
   const isLoading = profileLoading || historyLoading;
   const hasActivity = totalMessages > 0;
+
+  const [hydrated, setHydrated] = useState(false);
+  const cases = useCaseStore((s) => s.cases);
+  useEffect(() => setHydrated(true), []);
+  const activeCases = cases.filter((c) => ACTIVE_STATUSES.includes(c.status));
+  const recentCase = cases[0];
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["history", address] });
@@ -175,6 +193,61 @@ export default function DashboardPage() {
                 <Link href="/chat" className="px-3 py-1.5 bg-[#DC2626] text-white text-xs font-semibold rounded-lg hover:bg-[#B91C1C] transition-colors flex-shrink-0">
                   Start
                 </Link>
+              </motion.div>
+            )}
+
+            {/* Visa cases summary */}
+            {hydrated && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white border border-[#E2E8F0] rounded-2xl p-5"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-[#0F172A] font-bold text-sm">Visa Cases</p>
+                    <p className="text-[#64748B] text-xs">
+                      {cases.length === 0
+                        ? "Track every application end-to-end"
+                        : `${activeCases.length} active · ${cases.length} total`}
+                    </p>
+                  </div>
+                  <Link
+                    href="/cases"
+                    className="text-[#DC2626] text-xs font-semibold hover:underline flex-shrink-0"
+                  >
+                    {cases.length === 0 ? "Add case →" : "View all →"}
+                  </Link>
+                </div>
+
+                {recentCase && (
+                  <Link
+                    href="/cases"
+                    className="block bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-3 hover:border-[#DC2626] transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[#0F172A] font-semibold text-sm truncate">
+                          {recentCase.visaType}
+                        </p>
+                        <p className="text-[#64748B] text-xs">{recentCase.country}</p>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#DC2626] bg-[#FEF2F2] border border-[#FECACA] rounded-full px-2 py-1 flex-shrink-0">
+                        {CASE_STATUS_LABELS[recentCase.status]}
+                      </span>
+                    </div>
+                  </Link>
+                )}
+
+                {!recentCase && (
+                  <Link
+                    href="/cases"
+                    className="block bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-3 text-center hover:bg-[#FECACA]/40 transition-colors"
+                  >
+                    <p className="text-[#DC2626] text-xs font-semibold">+ Track your first visa case</p>
+                  </Link>
+                )}
               </motion.div>
             )}
 

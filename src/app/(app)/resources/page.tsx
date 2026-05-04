@@ -43,6 +43,11 @@ const PROCESSING_TIMES: ProcessingEntry[] = [
   { country: "Netherlands", flag: "\u{1F1F3}\u{1F1F1}", visaType: "Highly Skilled Migrant", time: "2\u20134 weeks", fee: "\u20AC300", difficulty: "Easy" },
   { country: "New Zealand", flag: "\u{1F1F3}\u{1F1FF}", visaType: "Skilled Migrant", time: "6\u201312 months", fee: "NZD $4,230", difficulty: "Moderate" },
   { country: "Singapore", flag: "\u{1F1F8}\u{1F1EC}", visaType: "Employment Pass", time: "3\u20138 weeks", fee: "SGD $105", difficulty: "Moderate" },
+  { country: "Brazil", flag: "\u{1F1E7}\u{1F1F7}", visaType: "Work Visa (VITEM V)", time: "2\u20134 months", fee: "USD $290", difficulty: "Moderate" },
+  { country: "Mexico", flag: "\u{1F1F2}\u{1F1FD}", visaType: "Temporary Resident", time: "4\u20136 weeks", fee: "MXN $4,920", difficulty: "Easy" },
+  { country: "South Korea", flag: "\u{1F1F0}\u{1F1F7}", visaType: "E-7 Work Visa", time: "2\u20134 weeks", fee: "USD $90", difficulty: "Moderate" },
+  { country: "Saudi Arabia", flag: "\u{1F1F8}\u{1F1E6}", visaType: "Premium Residency", time: "2\u20133 months", fee: "SAR 800,000 (one-time)", difficulty: "Moderate" },
+  { country: "India", flag: "\u{1F1EE}\u{1F1F3}", visaType: "Employment Visa", time: "3\u20138 weeks", fee: "USD $200", difficulty: "Moderate" },
 ];
 
 const GUIDES: GuideSection[] = [
@@ -1959,6 +1964,389 @@ TIPS
         sources: [
           { label: "Nigeria Immigration Service", url: "https://immigration.gov.ng/" },
           { label: "NIS CERPAC Portal", url: "https://portal.immigration.gov.ng/" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "br",
+    title: "Brazil",
+    flag: "\u{1F1E7}\u{1F1F7}",
+    category: "Latin America",
+    articles: [
+      {
+        title: "Work Visa (VITEM V) and Residence Permit",
+        summary: "Sponsored work visa for foreign professionals, requires Ministry of Justice authorization. Path to permanent residence after 4 years.",
+        tags: ["Work", "Employer Sponsored", "Residence"],
+        readTime: "5 min",
+        lastUpdated: "May 2026",
+        content: `ELIGIBILITY
+
+Brazilian employer must obtain prior work authorization from the Ministry of Justice and Public Security. Applicant typically needs a university degree plus 2 years of professional experience, OR 9+ years of professional experience in the role, OR a postgraduate qualification.
+
+REQUIREMENTS
+
+- Valid passport (6+ months remaining)
+- Employment contract with Brazilian-registered company
+- Notarized degree certificates with apostille
+- Police clearance from country of residence (apostilled)
+- Birth certificate (apostilled)
+- Health insurance valid in Brazil
+- Filing fee: USD ~$290
+
+PROCESS AND TIMELINE
+
+1. Brazilian employer applies for work authorization through SISMIGRA portal.
+2. Once authorized (typically 30-60 days), Ministry of Justice publishes approval in the Federal Gazette.
+3. Applicant schedules visa interview at nearest Brazilian consulate.
+4. After visa issuance, applicant has 90 days to enter Brazil.
+5. Within 90 days of entry, register at the Federal Police to obtain CRNM (Migration Registration Card).
+
+TIPS
+
+- After 4 years on a VITEM V, you may apply for permanent residence (Residência Permanente).
+- Spouses of work visa holders can apply for VITEM XI dependent visa with work authorization.
+- Brazil also offers a Digital Nomad Visa (since 2022) for remote workers earning USD $1,500+/month, valid 1 year and renewable.
+- Investor route: USD $148,000+ investment in a Brazilian business qualifies for VITEM XIV residence.`,
+        sources: [
+          { label: "Brazilian Ministry of Justice (Migration)", url: "https://www.gov.br/mj/pt-br/assuntos/seus-direitos/migracoes" },
+          { label: "Federal Police Migration", url: "https://www.gov.br/pf/pt-br/assuntos/imigracao" },
+        ],
+      },
+      {
+        title: "Digital Nomad Visa (VITEM XIV)",
+        summary: "1-year visa for remote workers earning USD $1,500+/month from foreign employers. Renewable once for a total of 2 years.",
+        tags: ["Remote Work", "Digital Nomad"],
+        readTime: "3 min",
+        lastUpdated: "May 2026",
+        content: `ELIGIBILITY
+
+Available to foreigners who work remotely for an employer located outside Brazil, or who run their own business serving non-Brazilian clients. Cannot work for a Brazilian employer on this visa.
+
+REQUIREMENTS
+
+- Proof of remote work arrangement (employment contract or business documents)
+- Minimum income USD $1,500/month OR USD $18,000 in available bank funds
+- International health insurance covering the entire stay
+- Clean criminal record
+- Valid passport with 6+ months remaining
+- Filing fee: USD ~$100
+
+PROCESS
+
+1. Apply at Brazilian consulate in your home country with all supporting documents.
+2. Visa typically issued in 2-4 weeks.
+3. Enter Brazil within validity period (usually 1 year).
+4. Register with Federal Police within 90 days of arrival.
+5. Renew once for an additional 12 months by demonstrating continued income.
+
+TIPS
+
+- Brazil has tax residency rules: stay 183+ days in 12 months and you may become a Brazilian tax resident.
+- The visa does not lead to permanent residence directly, but you can switch to a residence permit if eligibility changes.`,
+        sources: [
+          { label: "CNIG Resolution 45/2021 (Digital Nomad)", url: "https://www.in.gov.br/en/web/dou/-/resolucao-normativa-cnig-mj-n-45-de-9-de-setembro-de-2021-344277835" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "mx",
+    title: "Mexico",
+    flag: "\u{1F1F2}\u{1F1FD}",
+    category: "Latin America",
+    articles: [
+      {
+        title: "Temporary Resident Visa",
+        summary: "1-year initially, renewable up to 4 years. Path to permanent residence. Multiple qualifying routes including income, family, and work.",
+        tags: ["Residence", "Long-term"],
+        readTime: "5 min",
+        lastUpdated: "May 2026",
+        content: `ELIGIBILITY ROUTES
+
+1. Economic solvency: Monthly income equivalent to 300x daily minimum wage (about USD $2,700/month) for the past 6 months, OR savings of about USD $44,000.
+2. Family ties: Spouse, child, or parent of a Mexican citizen or permanent resident.
+3. Work offer: Mexican employer with INM-registered Constancia de Empleador.
+4. Investment: Real estate worth ~USD $400,000 OR business investment ~USD $200,000.
+
+REQUIREMENTS
+
+- Valid passport
+- Bank statements (last 6 or 12 months depending on route)
+- Birth/marriage certificates (apostilled and translated)
+- Photos meeting Mexican passport-photo specifications
+- Filing fee: MXN ~$4,920 (USD ~$280) for the visa
+- Resident card fee after entry: MXN ~$5,200
+
+PROCESS AND TIMELINE
+
+1. Apply at Mexican consulate abroad — DO NOT enter Mexico as a tourist if you intend to apply for residency.
+2. Initial visa issued in 4-6 weeks, valid for 6 months as a single-entry travel document.
+3. Enter Mexico, then within 30 days visit the local INM office to exchange the visa for a Temporary Resident card.
+4. Card initially valid 1 year, renewable for 1, 2, or 3 years cumulatively.
+5. After 4 years on Temporary Resident status, apply for Permanent Resident.
+
+TIPS
+
+- Income thresholds change yearly with the minimum-wage adjustment — check INM and your consulate for current numbers.
+- Marriage to a Mexican citizen accelerates the path: 2 years of Temporary Residence in Mexico, then Permanent Resident.
+- After 5 years of legal residence, you become eligible for Mexican citizenship by naturalization.`,
+        sources: [
+          { label: "Instituto Nacional de Migración", url: "https://www.gob.mx/inm" },
+          { label: "Mexican Consulate Visa Info", url: "https://www.gob.mx/sre/acciones-y-programas/temporary-resident-visa" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "kr",
+    title: "South Korea",
+    flag: "\u{1F1F0}\u{1F1F7}",
+    category: "East Asia",
+    articles: [
+      {
+        title: "E-7 Special Occupation Work Visa",
+        summary: "For skilled foreign professionals in 87 designated occupations. Annual quota with point-based selection. Path to F-2 long-term residence after 3 years.",
+        tags: ["Work", "Skilled"],
+        readTime: "5 min",
+        lastUpdated: "May 2026",
+        content: `ELIGIBILITY
+
+Must hold a job offer in one of 87 occupations on Korea's E-7 list (engineering, IT, science, design, certain trades). Bachelor's degree + 1 year experience, OR 5 years experience without degree, OR Korean university graduate with relevant degree.
+
+REQUIREMENTS
+
+- Job offer with annual salary at least 80% of Korean GNI per capita (~KRW 33 million / USD $25,000 minimum, varies by year)
+- University degree (apostilled), professional certifications, employment history
+- Korean employer must register the position with HOMETAX and obtain immigration approval
+- Filing fee: KRW 130,000 (USD ~$100) for visa issuance
+
+PROCESS AND TIMELINE
+
+1. Korean employer applies for Confirmation of Visa Issuance (사증발급인정서) with the Korea Immigration Service.
+2. Once approved (2-4 weeks), applicant submits visa application at Korean consulate abroad.
+3. Visa issued within 1-2 weeks.
+4. Enter Korea, then within 90 days apply for Alien Registration Card (ARC) at local immigration office.
+5. E-7 initially valid 1-3 years, renewable.
+
+TIPS
+
+- E-7-4 (Skilled Worker) is a separate sub-category for production workers — easier requirements but quota-limited.
+- After 3 years on E-7, you may apply for F-2 (Resident) visa under the points system; after 5 years on F-2, F-5 (Permanent Resident) becomes available.
+- TOPIK (Korean language test) Level 3+ significantly boosts F-2 application points.`,
+        sources: [
+          { label: "Korea Immigration Service (HiKorea)", url: "https://www.hikorea.go.kr/" },
+          { label: "Korea Visa Portal", url: "https://www.visa.go.kr/" },
+        ],
+      },
+      {
+        title: "D-2 Student & D-4 Language Training Visas",
+        summary: "Study at Korean university (D-2) or attend a Korean-language program (D-4). Both allow part-time work after 6 months and lead to D-10 job-seeker after graduation.",
+        tags: ["Student", "Language"],
+        readTime: "4 min",
+        lastUpdated: "May 2026",
+        content: `D-2 ELIGIBILITY
+
+Admission letter from a Korean university (bachelor's, master's, doctoral, or research program). Proof of financial support: minimum USD $20,000 in bank balance OR scholarship documentation.
+
+D-4 ELIGIBILITY
+
+Enrolled in a 6+ month full-time Korean language program at a recognized institution (typically a university-affiliated language center).
+
+REQUIREMENTS (BOTH)
+
+- Standardized Admission Letter from the Korean institution
+- Bank statement showing minimum financial support
+- Tuberculosis test (mandatory for many nationalities including Nigeria, Pakistan, Vietnam, Philippines)
+- Visa fee: KRW 100,000 (USD ~$75)
+
+PROCESS AND TIMELINE
+
+1. Receive Admission Letter from Korean institution.
+2. Apply at Korean consulate in home country (4-6 weeks processing typical).
+3. Enter Korea, register with local immigration within 90 days for ARC.
+4. Visa renewed annually based on enrollment.
+
+WORK PERMISSIONS
+
+- After 6 months in Korea, D-2 and D-4 holders can apply for permission to work part-time (up to 25 hours/week during semester, unlimited during breaks).
+- Required: Korean language proficiency (TOPIK 2+ for D-2, TOPIK 3+ for D-4 work permission).
+
+POST-GRADUATION
+
+- D-10 (Job-Seeker) visa allows 6 months to find employment, extendable to 2 years total.
+- Switch to E-7 once employed; advanced-degree holders may qualify for F-2-7 points-based residency.`,
+        sources: [
+          { label: "Study in Korea (Government)", url: "https://www.studyinkorea.go.kr/" },
+          { label: "Korea Visa Portal — Student", url: "https://www.visa.go.kr/" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "sa",
+    title: "Saudi Arabia",
+    flag: "\u{1F1F8}\u{1F1E6}",
+    category: "Middle East",
+    articles: [
+      {
+        title: "Premium Residency (Saudi Green Card)",
+        summary: "Long-term residence for foreign investors and skilled professionals without local sponsor. Two tiers: lifetime (one-time SAR 800,000) and renewable annual (SAR 100,000/year).",
+        tags: ["Permanent Residence", "Investor"],
+        readTime: "5 min",
+        lastUpdated: "May 2026",
+        content: `ELIGIBILITY
+
+Open to applicants 21+ with clean criminal record, proof of financial solvency, and either:
+- Substantial business activity or investment in Saudi Arabia
+- Highly specialized skills (Talent route — engineers, doctors, scientists, artists)
+- Real estate ownership in the Kingdom (Real Estate Owner route)
+- Distinguished entrepreneurs (Special Talent route)
+- Direct relatives of Saudi nationals (Family route)
+
+CATEGORIES (2024 EXPANSION)
+
+1. Permanent (Lifetime): One-time fee of SAR 800,000 (USD ~$213,000)
+2. Renewable Annual: SAR 100,000 (USD ~$26,600) per year
+3. Special Talent: Free or reduced fee for Saudi-recognized world-class talent
+4. Real Estate Owner: Tied to ownership of property worth SAR 4 million+
+5. Entrepreneur: Tied to recognized startup activity
+6. Distinguished Talent: Specialized expertise and Ministry endorsement
+7. Investor: Active business investment SAR 7 million+
+
+KEY BENEFITS
+
+- No Saudi sponsor (kafeel) required — applicant becomes their own sponsor
+- Right to own property and businesses outright
+- Right to recruit foreign workers
+- Family residency for spouse and children under 25
+- Free movement in/out of Kingdom
+- Access to government services and certain benefits
+
+REQUIREMENTS
+
+- Valid passport (12+ months)
+- Medical fitness certificate
+- Police clearance from country of residence
+- Proof of financial means (bank statements, investment portfolio)
+- Health insurance for self and family
+
+PROCESS AND TIMELINE
+
+1. Apply through Premium Residency Center portal (PRC.GOV.SA).
+2. Submit documents and pay application processing fee.
+3. Review takes 6-12 weeks for standard categories.
+4. If approved, pay residency fee (SAR 100,000 or SAR 800,000 depending on tier).
+5. Premium Residency Card issued; biometric registration in Riyadh.
+
+TIPS
+
+- Premium Residency does NOT lead to Saudi citizenship — naturalization remains rare and discretionary.
+- Distinguished Talent and Special Talent routes have lower or zero financial thresholds — worth exploring if you have specialized credentials.
+- Spouses and children under 25 are included in the same application.`,
+        sources: [
+          { label: "Premium Residency Center (Official)", url: "https://prc.gov.sa/en" },
+          { label: "Saudi Vision 2030 — Premium Residency", url: "https://www.vision2030.gov.sa/" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "in",
+    title: "India",
+    flag: "\u{1F1EE}\u{1F1F3}",
+    category: "South Asia",
+    articles: [
+      {
+        title: "Employment Visa for Foreigners",
+        summary: "For skilled foreign professionals employed by Indian companies. Minimum salary USD $25,000/year. Valid up to 5 years, renewable in India.",
+        tags: ["Work", "Employer Sponsored"],
+        readTime: "5 min",
+        lastUpdated: "May 2026",
+        content: `ELIGIBILITY
+
+Foreign nationals coming to India for employment with an Indian company at a senior or skilled level. Minimum gross annual salary USD $25,000 (waivers possible for certain roles such as language teachers, ethnic chefs, and translators).
+
+REQUIREMENTS
+
+- Employment contract with Indian-registered company
+- Salary at least USD $25,000/year (waivers for specific categories)
+- Educational qualifications and professional credentials
+- Employer's business registration documents
+- Police clearance from country of residence
+- Filing fee: varies by nationality (USD ~$200 typical)
+
+PROCESS AND TIMELINE
+
+1. Receive employment offer from Indian company.
+2. Apply at Indian Mission in country of residence using the Indian Visa Online portal.
+3. Submit biometrics and supporting documents at the relevant Visa Application Center (VFS Global in most countries).
+4. Standard processing: 3-8 weeks.
+5. After arrival in India, register with FRRO (Foreigners Regional Registration Office) within 14 days if stay exceeds 180 days.
+
+KEY CONDITIONS
+
+- Visa is tied to the specific employer; changing jobs requires fresh visa application.
+- Spouses and dependent children can apply for X (Entry) visa for the duration of the employment visa.
+- Employment visa is NOT issued for jobs that can be filled by Indian nationals (clerical, secretarial, semi-skilled labor).
+
+EXTENSION AND RENEWAL
+
+- Initial visa typically issued for the contract duration up to 5 years.
+- Renewable in India through the FRRO; do not need to leave the country to renew.
+- Continuous residence on employment visa can support eventual application for Permanent Residency Status (PRS) under specific high-investment criteria.`,
+        sources: [
+          { label: "Indian Visa Online (Government)", url: "https://indianvisaonline.gov.in/" },
+          { label: "Bureau of Immigration India (FRRO)", url: "https://indianfrro.gov.in/" },
+        ],
+      },
+      {
+        title: "OCI (Overseas Citizen of India) Card",
+        summary: "Lifetime visa for foreign nationals of Indian origin and their spouses. Functions like permanent residency for diaspora — no need to apply for visas to visit India.",
+        tags: ["Diaspora", "PIO", "Long-term"],
+        readTime: "4 min",
+        lastUpdated: "May 2026",
+        content: `ELIGIBILITY
+
+- Foreign nationals who were Indian citizens at any time after January 26, 1950
+- Foreign nationals descended (up to 4 generations) from someone who was an Indian citizen
+- Spouses of Indian citizens or existing OCI cardholders (married 2+ years)
+
+EXCLUSIONS
+
+- Citizens or former citizens of Pakistan and Bangladesh are not eligible
+- Persons with criminal records may be denied
+
+REQUIREMENTS
+
+- Proof of Indian origin (parent, grandparent, or great-grandparent's Indian passport, birth certificate, or domicile certificate)
+- Foreign passport (valid 6+ months)
+- Marriage certificate (for spouse applicants)
+- Photos meeting OCI specifications
+- Application fee: USD ~$275 (lower for renewals after age 20 and after age 50)
+
+PROCESS AND TIMELINE
+
+1. Apply online via OCI portal (https://ociservices.gov.in).
+2. Print application and submit at Indian Mission/VFS along with original documents.
+3. Processing: 8-12 weeks typical, can be faster.
+4. Document verification at Mission, then printed in India and shipped back.
+
+KEY BENEFITS
+
+- Lifetime multiple-entry visa to India
+- Parity with Non-Resident Indians (NRIs) for most economic, financial, and educational matters (except agricultural land ownership and government employment)
+- No requirement to register with FRRO regardless of length of stay
+- Eligibility to apply for Indian citizenship after spending 12 months in India in qualifying conditions
+
+IMPORTANT NOTES
+
+- OCI is NOT dual citizenship — you remain a foreign national.
+- OCI must be re-issued after every passport renewal (free first time, fees thereafter).
+- Cancelled if holder takes up employment in Pakistan/Bangladesh, or for certain offences.`,
+        sources: [
+          { label: "OCI Services Portal", url: "https://ociservices.gov.in/" },
+          { label: "Ministry of Home Affairs — OCI", url: "https://www.mha.gov.in/MHA1/Par2017/pdfs/par2018-pdfs/ls-21082018-eng/2105.pdf" },
         ],
       },
     ],

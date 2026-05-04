@@ -149,6 +149,7 @@ async function buildLawyer(walletAddress: string): Promise<Lawyer | null> {
     languages: meta?.languages ?? [],
     bio: meta?.bio ?? "",
     website: meta?.website ?? "",
+    serviceType: (meta?.serviceType as Lawyer["serviceType"]) ?? "Lawyer",
     status: statusMap[record.status] ?? "pending",
     appliedAt: record.appliedAt * 1000, // convert seconds → ms
     verifiedAt: record.verifiedAt ? record.verifiedAt * 1000 : null,
@@ -171,6 +172,7 @@ export async function upsertLawyerApplication(
     languages: app.languages,
     bio: app.bio,
     website: app.website ?? "",
+    serviceType: app.serviceType ?? "Lawyer",
   });
   const { rootHash } = await uploadToStorage(Buffer.from(json, "utf-8"));
 

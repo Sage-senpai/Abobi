@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useWallet } from "@/hooks/useWallet";
-import type { LawyerApplication } from "@/types/lawyer";
+import { SERVICE_TYPES, type LawyerApplication, type ServiceType } from "@/types/lawyer";
 
 const SPECIALIZATION_OPTIONS = [
   "Immigration",
@@ -70,7 +70,13 @@ export default function LawyerApplyPage() {
     languages: ["English"],
     bio: "",
     website: "",
+    serviceType: "Lawyer" as ServiceType,
   });
+
+  const isLawyer = form.serviceType === "Lawyer";
+  const credentialLabel = isLawyer
+    ? "Bar Number / License ID *"
+    : "Credential / Certification ID *";
 
   const mutation = useMutation({
     mutationFn: submitApplication,
@@ -200,7 +206,7 @@ export default function LawyerApplyPage() {
           </Link>
           <h1 className="text-2xl font-black text-[#0F172A]">Apply for Verification</h1>
           <p className="text-[#64748B] text-sm mt-1">
-            Submit your credentials to be listed as a verified immigration lawyer on ZeroViza.
+            Submit your credentials to be listed as a verified immigration service provider on ZeroViza.
           </p>
         </div>
 
@@ -223,6 +229,35 @@ export default function LawyerApplyPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* Service type */}
+          <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6">
+            <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wider mb-1">
+              Service Type *
+            </h2>
+            <p className="text-xs text-[#64748B] mb-3">
+              Choose how you serve immigrants. Non-lawyers (translators, RCICs, OISC advisers, evaluators, notaries) are welcome.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {SERVICE_TYPES.map((type) => {
+                const active = form.serviceType === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setForm({ ...form, serviceType: type })}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                      active
+                        ? "bg-[#0F172A] text-white border-[#0F172A]"
+                        : "bg-white text-[#64748B] border-[#E2E8F0] hover:border-[#0F172A] hover:text-[#0F172A]"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Personal info */}
           <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 space-y-4">
@@ -266,10 +301,10 @@ export default function LawyerApplyPage() {
 
           {/* Bar credentials */}
           <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 space-y-4">
-            <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wider">Bar Credentials</h2>
+            <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wider">{isLawyer ? "Bar Credentials" : "Professional Credentials"}</h2>
 
             <div>
-              <label className="block text-sm font-semibold text-[#0F172A] mb-1.5">Bar Number / License ID *</label>
+              <label className="block text-sm font-semibold text-[#0F172A] mb-1.5">{credentialLabel}</label>
               <input
                 type="text"
                 required

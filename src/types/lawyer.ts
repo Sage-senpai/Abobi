@@ -1,3 +1,24 @@
+export type ServiceType =
+  | "Lawyer"
+  | "RCIC (Canada Consultant)"
+  | "OISC Adviser (UK)"
+  | "MARA Agent (Australia)"
+  | "Translator"
+  | "Credential Evaluator"
+  | "Notary"
+  | "Document Specialist";
+
+export const SERVICE_TYPES: ServiceType[] = [
+  "Lawyer",
+  "RCIC (Canada Consultant)",
+  "OISC Adviser (UK)",
+  "MARA Agent (Australia)",
+  "Translator",
+  "Credential Evaluator",
+  "Notary",
+  "Document Specialist",
+];
+
 export interface Lawyer {
   id: string;
   walletAddress: string;
@@ -10,6 +31,7 @@ export interface Lawyer {
   languages: string[];
   bio: string;
   website: string;
+  serviceType: ServiceType;
   status: "pending" | "verified" | "rejected";
   appliedAt: number;
   verifiedAt: number | null;
@@ -27,4 +49,5 @@ export interface LawyerApplication {
   languages: string[];
   bio: string;
   website?: string;
+  serviceType: ServiceType;
 }

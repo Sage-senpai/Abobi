@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { walletAddress, fullName, email, barNumber, jurisdiction, specializations, yearsExperience, languages, bio, website } = body;
+  const { walletAddress, fullName, email, barNumber, jurisdiction, specializations, yearsExperience, languages, bio, website, serviceType } = body;
 
   if (!walletAddress || !WALLET_RE.test(walletAddress)) {
     return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
     languages,
     bio: bio.trim(),
     website: website?.trim() ?? "",
+    serviceType: serviceType ?? "Lawyer",
   });
 
   return NextResponse.json({ success: true, id });

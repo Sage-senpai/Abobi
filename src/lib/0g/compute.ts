@@ -299,6 +299,168 @@ export async function sendToZeroViza(
   throw new Error(`All inference providers failed. ${summary}`);
 }
 
+// ─── Streaming inference ─────────────────────────────────────────────────────
+
+export interface StreamEvent {
+  type: "chunk" | "done" | "error";
+  content?: string;
+  providerAddress?: string;
+  error?: string;
+}
+
+async function* parseSSEStream(
+  response: Response
+): AsyncGenerator<string, void, unknown> {
+  if (!response.body) throw new Error("No response body");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const payload = trimmed.slice(5).trim();
+        if (payload === "[DONE]") return;
+        try {
+          const parsed = JSON.parse(payload) as {
+            choices?: Array<{ delta?: { content?: string } }>;
+          };
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) yield delta;
+        } catch {
+          // skip malformed chunks
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+async function* callDirectAPIStream(
+  messages: InferenceMessage[],
+  modelId: string
+): AsyncGenerator<string, void, unknown> {
+  const apiUrl = process.env.OG_COMPUTE_API_URL!;
+  const apiKey = process.env.OG_COMPUTE_API_KEY!;
+  const endpoint = `${apiUrl.replace(/\/+$/, "")}/chat/completions`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: modelId,
+      messages,
+      max_tokens: INFERENCE_CONFIG.maxTokens,
+      temperature: INFERENCE_CONFIG.temperature,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`0G Compute stream error ${response.status}: ${errText}`);
+  }
+
+  yield* parseSSEStream(response);
+}
+
+async function* callGroqAPIStream(
+  messages: InferenceMessage[]
+): AsyncGenerator<string, void, unknown> {
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages,
+      max_tokens: INFERENCE_CONFIG.maxTokens,
+      temperature: INFERENCE_CONFIG.temperature,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Groq stream error ${response.status}: ${errText}`);
+  }
+
+  yield* parseSSEStream(response);
+}
+
+/**
+ * Streaming inference. Tries 0G direct → Groq fallback. Yields token deltas;
+ * the final accumulated text and provider tag are returned via callback.
+ */
+export async function* streamFromZeroViza(
+  userMessage: string,
+  contextHistory: InferenceMessage[] = []
+): AsyncGenerator<StreamEvent, void, unknown> {
+  const recentContext = contextHistory.slice(-INFERENCE_CONFIG.contextWindow);
+  const messages: InferenceMessage[] = [
+    { role: "system", content: ZEROVIZA_SYSTEM_PROMPT },
+    ...recentContext,
+    { role: "user", content: userMessage },
+  ];
+
+  const tryProviders: Array<{
+    name: "0g-compute-direct" | "groq-fallback";
+    enabled: boolean;
+    factory: () => AsyncGenerator<string, void, unknown>;
+  }> = [
+    {
+      name: "0g-compute-direct",
+      enabled: has0GDirect(),
+      factory: () => callDirectAPIStream(messages, MODEL_ID),
+    },
+    {
+      name: "groq-fallback",
+      enabled: hasGroqFallback(),
+      factory: () => callGroqAPIStream(messages),
+    },
+  ];
+
+  const errors: string[] = [];
+
+  for (const p of tryProviders) {
+    if (!p.enabled) continue;
+    try {
+      let any = false;
+      for await (const chunk of p.factory()) {
+        any = true;
+        yield { type: "chunk", content: chunk, providerAddress: p.name };
+      }
+      if (any) {
+        yield { type: "done", providerAddress: p.name };
+        return;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[stream/${p.name}] failed: ${msg}`);
+      errors.push(`${p.name}: ${msg}`);
+    }
+  }
+
+  yield {
+    type: "error",
+    error: errors.length ? errors.join(" | ") : "No streaming provider configured",
+  };
+}
+
 // ─── Setup helpers (broker only) ─────────────────────────────────────────────
 
 export async function acknowledgeProvider(): Promise<void> {

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import type { Lawyer } from "@/types/lawyer";
+import type { Lawyer, ServiceType } from "@/types/lawyer";
+import { SERVICE_TYPES } from "@/types/lawyer";
 
 const SPECIALIZATION_COLORS: Record<string, string> = {
   "Immigration": "bg-blue-100 text-blue-700",
@@ -31,6 +32,7 @@ async function fetchLawyers(): Promise<Lawyer[]> {
 export default function LawyersPage() {
   const [search, setSearch] = useState("");
   const [filterSpec, setFilterSpec] = useState("");
+  const [filterType, setFilterType] = useState<"" | ServiceType>("");
 
   const { data: lawyers = [], isLoading, error } = useQuery({
     queryKey: ["lawyers"],
@@ -47,7 +49,9 @@ export default function LawyersPage() {
       l.languages.some((lang) => lang.toLowerCase().includes(q));
     const matchesSpec =
       !filterSpec || l.specializations.includes(filterSpec);
-    return matchesSearch && matchesSpec;
+    const matchesType =
+      !filterType || (l.serviceType ?? "Lawyer") === filterType;
+    return matchesSearch && matchesSpec && matchesType;
   });
 
   const allSpecs = Array.from(
@@ -62,9 +66,9 @@ export default function LawyersPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-2xl font-black text-[#0F172A]">Verified Lawyers</h1>
+              <h1 className="text-2xl font-black text-[#0F172A]">Verified Service Providers</h1>
               <p className="text-[#64748B] text-sm mt-1">
-                Accredited immigration lawyers verified by ZeroViza
+                Lawyers, RCICs, OISC advisers, translators, evaluators and notaries verified on-chain
               </p>
             </div>
             <Link
@@ -93,6 +97,16 @@ export default function LawyersPage() {
                 className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#E2E8F0] rounded-xl text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#DC2626] transition-colors"
               />
             </div>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as "" | ServiceType)}
+              className="px-3 py-2.5 bg-white border border-[#E2E8F0] rounded-xl text-sm text-[#0F172A] focus:outline-none focus:border-[#DC2626] transition-colors"
+            >
+              <option value="">All service types</option>
+              {SERVICE_TYPES.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
             {allSpecs.length > 0 && (
               <select
                 value={filterSpec}
@@ -174,6 +188,9 @@ export default function LawyersPage() {
                       </svg>
                     </div>
                     <p className="text-[#64748B] text-xs mt-0.5">{lawyer.jurisdiction}</p>
+                    <span className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider text-[#0F172A] bg-[#F1F5F9] border border-[#E2E8F0] rounded-full px-2 py-0.5">
+                      {lawyer.serviceType ?? "Lawyer"}
+                    </span>
                   </div>
                 </div>
 

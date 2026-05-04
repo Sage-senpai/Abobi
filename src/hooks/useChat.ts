@@ -5,13 +5,61 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/hooks/useWallet";
 import { nanoid } from "nanoid";
 import { useChatStore } from "@/store/chatStore";
-import type { ChatMessage, ChatResponse } from "@/types/chat";
+import type { ChatMessage } from "@/types/chat";
+
+interface SSEEvent {
+  type: "start" | "chunk" | "done" | "error";
+  content?: string;
+  message?: ChatMessage;
+  assistantId?: string;
+  userMessageId?: string;
+  error?: string;
+}
+
+async function* readSSE(response: Response): AsyncGenerator<SSEEvent, void, unknown> {
+  if (!response.body) return;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const payload = trimmed.slice(5).trim();
+        if (!payload) continue;
+        try {
+          yield JSON.parse(payload) as SSEEvent;
+        } catch {
+          // skip malformed
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 export function useChat() {
   const { address } = useWallet();
   const queryClient = useQueryClient();
-  const { messages, isLoading, error, addMessage, setLoading, setError } =
-    useChatStore();
+  const {
+    messages,
+    isLoading,
+    error,
+    addMessage,
+    updateMessage,
+    appendToMessage,
+    setLoading,
+    setError,
+  } = useChatStore();
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -24,31 +72,56 @@ export function useChat() {
         timestamp: Date.now(),
       };
 
-      // Optimistic update
+      // Optimistic user bubble
       addMessage(userMsg);
+
+      // Placeholder assistant bubble — fills in as tokens stream
+      const assistantMsg: ChatMessage = {
+        id: nanoid(),
+        role: "assistant",
+        content: "",
+        timestamp: Date.now(),
+      };
+      addMessage(assistantMsg);
+
       setLoading(true);
       setError(null);
 
       try {
-        const res = await fetch("/api/chat", {
+        const res = await fetch("/api/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: content.trim(), walletAddress: address }),
         });
 
         if (!res.ok) {
-          const errData = (await res.json()) as { error?: string };
+          const errData = (await res.json().catch(() => ({}))) as { error?: string };
           throw new Error(errData.error ?? "Chat request failed");
         }
 
-        const data = (await res.json()) as ChatResponse;
-        addMessage(data.message);
+        let received = "";
 
-        // Invalidate history immediately (returns updated list from 0G)
+        for await (const ev of readSSE(res)) {
+          if (ev.type === "chunk" && ev.content) {
+            received += ev.content;
+            appendToMessage(assistantMsg.id, ev.content);
+          } else if (ev.type === "done" && ev.message) {
+            updateMessage(assistantMsg.id, {
+              id: ev.message.id,
+              content: ev.message.content,
+              provider: ev.message.provider,
+              timestamp: ev.message.timestamp,
+            });
+          } else if (ev.type === "error") {
+            throw new Error(ev.error ?? "Stream error");
+          }
+        }
+
+        if (!received) {
+          throw new Error("No response received");
+        }
+
         await queryClient.invalidateQueries({ queryKey: ["history", address] });
-        // Profile streak is written by background persist — 0G chain tx
-        // takes ~10-20s to confirm. Invalidate at 15s and again at 35s
-        // to catch both fast and slow confirmations.
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ["profile", address] });
         }, 15_000);
@@ -58,18 +131,14 @@ export function useChat() {
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
         setError(msg);
-        // Add a visible error message in the chat
-        addMessage({
-          id: nanoid(),
-          role: "assistant",
+        updateMessage(assistantMsg.id, {
           content: `Sorry, something went wrong: ${msg}. Please try again.`,
-          timestamp: Date.now(),
         });
       } finally {
         setLoading(false);
       }
     },
-    [address, isLoading, addMessage, setLoading, setError, queryClient]
+    [address, isLoading, addMessage, updateMessage, appendToMessage, setLoading, setError, queryClient]
   );
 
   return { messages, isLoading, error, sendMessage };
