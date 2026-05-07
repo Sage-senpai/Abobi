@@ -2,14 +2,22 @@
 
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
+import { useAutoSyncCases } from "@/hooks/useAutoSyncCases";
 
 interface AppShellProps {
   children: React.ReactNode;
 }
 
+function AutoSyncMount() {
+  useAutoSyncCases();
+  return null;
+}
+
 export function AppShell({ children }: AppShellProps) {
   return (
     <div className="h-screen flex overflow-hidden bg-[#F8FAFC]">
+      <AutoSyncMount />
+
       {/* Desktop sidebar — dark navy, sticky */}
       <Sidebar />
 

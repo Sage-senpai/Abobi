@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCaseStore } from "@/store/caseStore";
 import { useWallet } from "@/hooks/useWallet";
+import { useAutoSyncCases } from "@/hooks/useAutoSyncCases";
 import {
   CASE_STATUSES,
   CASE_STATUS_LABELS,
@@ -341,6 +342,7 @@ function SyncBar() {
   const replaceCases = useCaseStore((s) => s.replaceCases);
   const lastSyncedAt = useCaseStore((s) => s.lastSyncedAt);
   const setLastSyncedAt = useCaseStore((s) => s.setLastSyncedAt);
+  const autoSyncState = useAutoSyncCases({ disableInitialPull: true });
   const [busy, setBusy] = useState<"push" | "pull" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pulledCount, setPulledCount] = useState<number | null>(null);
@@ -410,11 +412,25 @@ function SyncBar() {
     <div className="mb-4 px-4 py-3 bg-[#0F172A] rounded-xl">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="relative flex w-2 h-2 flex-shrink-0">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-          </span>
-          <p className="text-white text-xs font-bold">0G Storage Sync</p>
+          {autoSyncState === "syncing" || autoSyncState === "pulling" ? (
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+          ) : autoSyncState === "error" ? (
+            <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+          ) : (
+            <span className="relative flex w-2 h-2 flex-shrink-0">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+            </span>
+          )}
+          <p className="text-white text-xs font-bold">
+            0G Storage Sync
+            {autoSyncState === "syncing" && (
+              <span className="ml-2 text-amber-400 font-normal">· auto-syncing…</span>
+            )}
+            {autoSyncState === "pulling" && (
+              <span className="ml-2 text-amber-400 font-normal">· pulling…</span>
+            )}
+          </p>
           <p className="text-[#94A3B8] text-[10px]">
             · Last sync: <span className="font-mono">{lastSyncLabel}</span>
           </p>
