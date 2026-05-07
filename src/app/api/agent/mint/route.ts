@@ -77,6 +77,10 @@ export async function POST(req: NextRequest) {
       await upsertStorageIndex(wallet, index?.historyRootHash ?? "", profileRoot);
     }
 
+    if (!profileRoot) {
+      throw new Error("Invariant: profileRoot must be set after bootstrap");
+    }
+
     // Content hash binds the chain commitment to the encrypted blob
     const profileJson = JSON.stringify(profile);
     const contentHash = ethers.keccak256(ethers.toUtf8Bytes(profileJson));
