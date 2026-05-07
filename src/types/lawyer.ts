@@ -32,6 +32,9 @@ export interface Lawyer {
   bio: string;
   website: string;
   serviceType: ServiceType;
+  flatRateUSD?: number;
+  hourlyRateUSD?: number;
+  acceptsHires?: boolean;
   status: "pending" | "verified" | "rejected";
   appliedAt: number;
   verifiedAt: number | null;
@@ -50,4 +53,7 @@ export interface LawyerApplication {
   bio: string;
   website?: string;
   serviceType: ServiceType;
+  flatRateUSD?: number;
+  hourlyRateUSD?: number;
+  acceptsHires?: boolean;
 }

@@ -71,6 +71,9 @@ export default function LawyerApplyPage() {
     bio: "",
     website: "",
     serviceType: "Lawyer" as ServiceType,
+    flatRateUSD: undefined,
+    hourlyRateUSD: undefined,
+    acceptsHires: false,
   });
 
   const isLawyer = form.serviceType === "Lawyer";
@@ -405,6 +408,65 @@ export default function LawyerApplyPage() {
               className="w-full px-3 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#DC2626] transition-colors resize-none"
             />
             <p className="text-xs text-[#94A3B8] mt-1.5">{form.bio.length} / 1000 characters</p>
+          </div>
+
+          {/* Pricing & agent hires */}
+          <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 space-y-3">
+            <div>
+              <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wider">Pricing &amp; agent hires</h2>
+              <p className="text-xs text-[#64748B] mt-1">
+                Optional. If you opt in, ZeroViza users&apos; AI agents may hire you on chain for a small operator-paid 0G transfer. The hire payload (user wallet, task, fee) is recorded in the tx calldata.
+              </p>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!form.acceptsHires}
+                onChange={(e) => setForm({ ...form, acceptsHires: e.target.checked })}
+                className="w-4 h-4 accent-[#DC2626]"
+              />
+              <span className="text-sm text-[#0F172A] font-semibold">Accept agent hires</span>
+            </label>
+
+            {form.acceptsHires && (
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div>
+                  <label className="block text-xs font-semibold text-[#0F172A] mb-1">Flat rate per task (USD)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={5}
+                    value={form.flatRateUSD ?? ""}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        flatRateUSD: e.target.value === "" ? undefined : Number(e.target.value),
+                      })
+                    }
+                    placeholder="e.g. 75"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#DC2626]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#0F172A] mb-1">Hourly rate (USD)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={5}
+                    value={form.hourlyRateUSD ?? ""}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        hourlyRateUSD: e.target.value === "" ? undefined : Number(e.target.value),
+                      })
+                    }
+                    placeholder="e.g. 250"
+                    className="w-full px-3 py-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#DC2626]"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Wallet address shown */}

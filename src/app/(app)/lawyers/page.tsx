@@ -188,9 +188,22 @@ export default function LawyersPage() {
                       </svg>
                     </div>
                     <p className="text-[#64748B] text-xs mt-0.5">{lawyer.jurisdiction}</p>
-                    <span className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider text-[#0F172A] bg-[#F1F5F9] border border-[#E2E8F0] rounded-full px-2 py-0.5">
-                      {lawyer.serviceType ?? "Lawyer"}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1 mt-1">
+                      <span className="inline-block text-[9px] font-bold uppercase tracking-wider text-[#0F172A] bg-[#F1F5F9] border border-[#E2E8F0] rounded-full px-2 py-0.5">
+                        {lawyer.serviceType ?? "Lawyer"}
+                      </span>
+                      {lawyer.acceptsHires && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[#DC2626] bg-[#FEF2F2] border border-[#FECACA] rounded-full px-2 py-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626] animate-pulse" />
+                          Agent-hireable
+                        </span>
+                      )}
+                      {lawyer.flatRateUSD !== undefined && lawyer.flatRateUSD > 0 && (
+                        <span className="inline-block text-[9px] font-bold uppercase tracking-wider text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                          ${lawyer.flatRateUSD}/task
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 

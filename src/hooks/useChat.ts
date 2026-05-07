@@ -27,6 +27,8 @@ interface SSEEvent {
   id?: string;
   ok?: boolean;
   summary?: string;
+  explorerUrl?: string;
+  txHash?: string;
 }
 
 async function* readSSE(response: Response): AsyncGenerator<SSEEvent, void, unknown> {
@@ -126,11 +128,15 @@ export function useChat() {
             updateMessage(assistantMsg.id, { toolCalls: [...liveToolCalls] });
           } else if (ev.type === "tool_done" && ev.name) {
             const idx = liveToolCalls.findIndex((t) => t.name === ev.name && t.uiSummary === "Working…");
-            if (idx >= 0) {
-              liveToolCalls[idx] = { name: ev.name, uiSummary: ev.summary ?? "Done", ok: !!ev.ok };
-            } else {
-              liveToolCalls.push({ name: ev.name, uiSummary: ev.summary ?? "Done", ok: !!ev.ok });
-            }
+            const finalized = {
+              name: ev.name,
+              uiSummary: ev.summary ?? "Done",
+              ok: !!ev.ok,
+              explorerUrl: ev.explorerUrl,
+              txHash: ev.txHash,
+            };
+            if (idx >= 0) liveToolCalls[idx] = finalized;
+            else liveToolCalls.push(finalized);
             updateMessage(assistantMsg.id, { toolCalls: [...liveToolCalls] });
           } else if (ev.type === "tool_error" && ev.name) {
             liveToolCalls.push({ name: ev.name, uiSummary: ev.error ?? "Tool failed", ok: false });

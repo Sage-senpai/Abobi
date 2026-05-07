@@ -2,7 +2,9 @@ import "server-only";
 
 import { nanoid } from "nanoid";
 import { findEmbassies } from "@/data/embassies";
-import { getVerifiedLawyers } from "@/lib/db/client";
+import { getVerifiedLawyers, getLawyerByWallet } from "@/lib/db/client";
+import { hireProvider, type HireResult } from "@/lib/agent/hire";
+import { findTokensOwnedBy, getCaseAgentNFTAddress } from "@/lib/contracts/CaseAgentNFT";
 import type { VisaCase, CaseStatus } from "@/types/case";
 import type { UserProfile, UserPersona, AgentInboxItem } from "@/types/user";
 import type { Embassy } from "@/types/embassy";
@@ -119,6 +121,32 @@ export const TOOL_DEFS = [
   {
     type: "function" as const,
     function: {
+      name: "hire_provider",
+      description:
+        "Hire a verified service provider on the user's behalf and record the hire on the 0G chain. CRITICAL: only call this AFTER the user has explicitly confirmed they want to engage a specific provider for a specific task and has agreed to the fee. Never call speculatively. The hire records a small operator-paid 0G transfer to the provider's wallet with the full task metadata in the calldata, viewable on chainscan.0g.ai.",
+      parameters: {
+        type: "object",
+        properties: {
+          providerWallet: {
+            type: "string",
+            description: "The provider's verified wallet address (must come from a prior find_service_provider result, not invented).",
+          },
+          taskDescription: {
+            type: "string",
+            description: "Brief description of the task the provider will complete (under 280 characters).",
+          },
+          agreedFeeUSD: {
+            type: "number",
+            description: "Fee in USD that the user agreed to pay for this task. Should match the provider's published flatRateUSD or a number the user explicitly confirmed.",
+          },
+        },
+        required: ["providerWallet", "taskDescription", "agreedFeeUSD"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "extract_profile_facts",
       description:
         "Save structured facts about the user that should persist across conversations. Call this whenever the user shares personal info that affects future advice (citizenship, current country, target country, profession, education level, family situation, budget, language fluency, or prior visa history). Only pass fields you are confident about — do not invent details.",
@@ -186,6 +214,10 @@ export interface ToolResult {
   inboxItems?: AgentInboxItem[];
   /** Cases to add (so the agent loop can persist them in one go). */
   newCases?: VisaCase[];
+  /** On-chain receipt link to surface in the UI (for hire_provider, etc). */
+  explorerUrl?: string;
+  /** Short tx hash for display. */
+  txHash?: string;
 }
 
 // ─── Handlers ────────────────────────────────────────────────────────────────
@@ -284,8 +316,100 @@ async function handleFindServiceProvider(args: {
         specializations: p.specializations,
         website: p.website,
         wallet: p.walletAddress,
+        flatRateUSD: p.flatRateUSD,
+        hourlyRateUSD: p.hourlyRateUSD,
+        acceptsHires: p.acceptsHires ?? false,
       })),
+      hint: "If the user wants to engage one of these providers, confirm the fee with them first, then call hire_provider with the wallet, task, and agreed fee. Only providers with acceptsHires=true can be hired.",
     },
+  };
+}
+
+async function handleHireProvider(
+  args: {
+    providerWallet: string;
+    taskDescription: string;
+    agreedFeeUSD: number;
+  },
+  ctx: ToolContext
+): Promise<ToolResult> {
+  const provider = await getLawyerByWallet(args.providerWallet);
+  if (!provider || provider.status !== "verified") {
+    return {
+      ok: false,
+      uiSummary: "Provider not verified — refusing to hire",
+      modelPayload: { error: "Provider is not in the verified registry. Refuse to invent unverified hires." },
+    };
+  }
+  if (!provider.acceptsHires) {
+    return {
+      ok: false,
+      uiSummary: `${provider.fullName} is not currently accepting agent hires`,
+      modelPayload: { error: "Provider has acceptsHires=false. Suggest the user contact them through their website instead." },
+    };
+  }
+  if (args.agreedFeeUSD <= 0) {
+    return {
+      ok: false,
+      uiSummary: "Refused: agreed fee must be greater than zero",
+      modelPayload: { error: "agreedFeeUSD must be > 0." },
+    };
+  }
+
+  // Look up the user's case agent INFT (if any) to bind the hire to it
+  let caseAgentTokenId: string | null = null;
+  if (getCaseAgentNFTAddress()) {
+    try {
+      const tokens = await findTokensOwnedBy(ctx.walletAddress);
+      caseAgentTokenId = tokens[0] ?? null;
+    } catch {
+      // not fatal
+    }
+  }
+
+  let hire: HireResult;
+  try {
+    hire = await hireProvider({
+      userWallet: ctx.walletAddress,
+      providerWallet: args.providerWallet,
+      taskDescription: args.taskDescription,
+      agreedFeeUSD: args.agreedFeeUSD,
+      caseAgentTokenId,
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      uiSummary: "Hire transaction failed",
+      modelPayload: { error: err instanceof Error ? err.message : "Hire failed" },
+    };
+  }
+
+  const inboxItem: AgentInboxItem = {
+    id: nanoid(),
+    createdAt: Date.now(),
+    type: "tool-result",
+    title: `Hired ${provider.fullName} ($${args.agreedFeeUSD})`,
+    detail: `Task: ${args.taskDescription.slice(0, 140)} · Receipt on chain (tx ${hire.txHash.slice(0, 10)}…)`,
+    read: false,
+  };
+
+  return {
+    ok: true,
+    uiSummary: `Hired ${provider.fullName} for $${args.agreedFeeUSD}`,
+    modelPayload: {
+      success: true,
+      provider: provider.fullName,
+      providerWallet: args.providerWallet,
+      agreedFeeUSD: args.agreedFeeUSD,
+      txHash: hire.txHash,
+      blockNumber: hire.blockNumber,
+      receiptHash: hire.receiptHash,
+      caseAgentTokenId,
+      explorerUrl: `https://chainscan.0g.ai/tx/${hire.txHash}`,
+    },
+    inboxItems: [inboxItem],
+    explorerUrl: `https://chainscan.0g.ai/tx/${hire.txHash}`,
+    txHash: hire.txHash,
   };
 }
 
@@ -393,6 +517,8 @@ export async function executeTool(
       return handleLookupEmbassy(args as Parameters<typeof handleLookupEmbassy>[0]);
     case "find_service_provider":
       return handleFindServiceProvider(args as Parameters<typeof handleFindServiceProvider>[0]);
+    case "hire_provider":
+      return handleHireProvider(args as Parameters<typeof handleHireProvider>[0], ctx);
     case "create_case":
       return handleCreateCase(args as Parameters<typeof handleCreateCase>[0], ctx);
     case "extract_profile_facts":

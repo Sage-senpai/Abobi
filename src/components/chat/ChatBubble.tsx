@@ -6,6 +6,7 @@ import type { ChatMessage, ChatSource, ToolCallSummary } from "@/types/chat";
 const TOOL_ICONS: Record<string, string> = {
   lookup_embassy: "\u{1F3DB}",
   find_service_provider: "\u{2696}",
+  hire_provider: "\u{1F91D}",
   create_case: "\u{1F4C4}",
   extract_profile_facts: "\u{1F464}",
   schedule_reminder: "\u{23F0}",
@@ -15,6 +16,7 @@ const TOOL_ICONS: Record<string, string> = {
 const TOOL_LABELS: Record<string, string> = {
   lookup_embassy: "Looking up embassy",
   find_service_provider: "Searching providers",
+  hire_provider: "Hiring on chain",
   create_case: "Creating case",
   extract_profile_facts: "Saving profile facts",
   schedule_reminder: "Scheduling reminder",
@@ -29,6 +31,45 @@ function ToolCallsBlock({ calls }: { calls: ToolCallSummary[] }) {
         const icon = TOOL_ICONS[c.name] ?? "\u{1F527}";
         const label = TOOL_LABELS[c.name] ?? c.name;
         const isPending = c.uiSummary === "Working…";
+        const isHire = c.name === "hire_provider" && c.ok && c.explorerUrl;
+
+        if (isHire) {
+          return (
+            <div
+              key={`${c.name}-${i}`}
+              className="block p-3 rounded-xl border-2 border-[#DC2626] bg-gradient-to-br from-[#FEF2F2] to-white"
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-base leading-none">{icon}</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#DC2626]">
+                  Agent hire receipt
+                </span>
+                <span className="ml-auto inline-flex items-center gap-1 text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 rounded-full px-1.5 py-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  On chain
+                </span>
+              </div>
+              <p className="text-[#0F172A] text-xs font-semibold mb-1.5">{c.uiSummary}</p>
+              {c.txHash && (
+                <p className="text-[10px] font-mono text-[#64748B] mb-2 break-all">
+                  tx: {c.txHash}
+                </p>
+              )}
+              <a
+                href={c.explorerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[#DC2626] text-[11px] font-bold hover:underline"
+              >
+                View on 0G Scan
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            </div>
+          );
+        }
+
         return (
           <div
             key={`${c.name}-${i}`}

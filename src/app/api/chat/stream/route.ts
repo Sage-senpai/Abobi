@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
       let accumulated = "";
       let provider = "unknown";
       let errored: string | null = null;
-      const toolCalls: Array<{ name: string; uiSummary: string; ok: boolean }> = [];
+      const toolCalls: Array<{ name: string; uiSummary: string; ok: boolean; explorerUrl?: string; txHash?: string }> = [];
 
       const generator = runAgentLoop({
         userMessage: message,
@@ -179,6 +179,8 @@ export async function POST(req: NextRequest) {
                 name: ev.toolName ?? "unknown",
                 uiSummary: ev.uiSummary ?? "",
                 ok: !!ev.ok,
+                explorerUrl: ev.explorerUrl,
+                txHash: ev.txHash,
               });
               send({
                 type: "tool_done",
@@ -186,6 +188,8 @@ export async function POST(req: NextRequest) {
                 id: ev.toolCallId,
                 ok: ev.ok,
                 summary: ev.uiSummary,
+                explorerUrl: ev.explorerUrl,
+                txHash: ev.txHash,
               });
               break;
             case "tool_error":

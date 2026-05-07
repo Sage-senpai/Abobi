@@ -150,6 +150,9 @@ async function buildLawyer(walletAddress: string): Promise<Lawyer | null> {
     bio: meta?.bio ?? "",
     website: meta?.website ?? "",
     serviceType: (meta?.serviceType as Lawyer["serviceType"]) ?? "Lawyer",
+    flatRateUSD: typeof meta?.flatRateUSD === "number" ? meta.flatRateUSD : undefined,
+    hourlyRateUSD: typeof meta?.hourlyRateUSD === "number" ? meta.hourlyRateUSD : undefined,
+    acceptsHires: typeof meta?.acceptsHires === "boolean" ? meta.acceptsHires : undefined,
     status: statusMap[record.status] ?? "pending",
     appliedAt: record.appliedAt * 1000, // convert seconds → ms
     verifiedAt: record.verifiedAt ? record.verifiedAt * 1000 : null,
@@ -173,6 +176,9 @@ export async function upsertLawyerApplication(
     bio: app.bio,
     website: app.website ?? "",
     serviceType: app.serviceType ?? "Lawyer",
+    flatRateUSD: app.flatRateUSD,
+    hourlyRateUSD: app.hourlyRateUSD,
+    acceptsHires: app.acceptsHires ?? false,
   });
   const { rootHash } = await uploadToStorage(Buffer.from(json, "utf-8"));
 

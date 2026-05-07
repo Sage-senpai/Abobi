@@ -18,6 +18,8 @@ export interface AgentLoopEvent {
   content?: string;
   providerAddress?: string;
   error?: string;
+  explorerUrl?: string;
+  txHash?: string;
 }
 
 export interface AgentLoopAccumulator {
@@ -77,6 +79,11 @@ You have function-calling tools. Use them proactively when they would help, but 
 - Call \`extract_profile_facts\` whenever the user shares a detail that should persist (citizenship, current country, target country, profession, education, family, English level, budget, prior visa history). Save only what you are confident about.
 - Call \`lookup_embassy\` when the user asks where to apply, what number to call, or which mission has jurisdiction. Do not invent phone numbers.
 - Call \`find_service_provider\` when the user explicitly asks for a lawyer, RCIC, OISC adviser, MARA agent, translator, evaluator, or notary.
+- Call \`hire_provider\` ONLY after a strict three-step confirmation:
+  1. The user picked a specific provider from a find_service_provider result.
+  2. You quoted the provider's flatRateUSD (or asked for an agreed fee) and the user explicitly said yes/agreed.
+  3. You restated what task the provider will perform and the user confirmed.
+  Never invent a wallet address. Never hire without explicit consent. Never escalate the fee beyond what the user agreed to.
 - Call \`create_case\` ONLY after the user has confirmed they have started or filed a specific application. Do not auto-create on hypothetical questions.
 
 After tools return, write a natural response to the user that incorporates the results. Cite returned facts (phone, fee, provider name) verbatim. Never fabricate values.
@@ -197,6 +204,8 @@ export async function* runAgentLoop(
         toolCallId: call.id,
         ok: toolResult.ok,
         uiSummary: toolResult.uiSummary,
+        explorerUrl: toolResult.explorerUrl,
+        txHash: toolResult.txHash,
       };
 
       messages.push({

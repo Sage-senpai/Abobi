@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { walletAddress, fullName, email, barNumber, jurisdiction, specializations, yearsExperience, languages, bio, website, serviceType } = body;
+  const { walletAddress, fullName, email, barNumber, jurisdiction, specializations, yearsExperience, languages, bio, website, serviceType, flatRateUSD, hourlyRateUSD, acceptsHires } = body;
 
   if (!walletAddress || !WALLET_RE.test(walletAddress)) {
     return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
@@ -60,6 +60,9 @@ export async function POST(req: NextRequest) {
     bio: bio.trim(),
     website: website?.trim() ?? "",
     serviceType: serviceType ?? "Lawyer",
+    flatRateUSD: typeof flatRateUSD === "number" && flatRateUSD >= 0 ? flatRateUSD : undefined,
+    hourlyRateUSD: typeof hourlyRateUSD === "number" && hourlyRateUSD >= 0 ? hourlyRateUSD : undefined,
+    acceptsHires: typeof acceptsHires === "boolean" ? acceptsHires : false,
   });
 
   return NextResponse.json({ success: true, id });

@@ -13,6 +13,10 @@ export interface ToolCallSummary {
   name: string;
   uiSummary: string;
   ok: boolean;
+  /** Optional on-chain receipt link (e.g. for hire_provider). */
+  explorerUrl?: string;
+  /** Optional short transaction hash for display. */
+  txHash?: string;
 }
 
 export interface ChatMessage {
