@@ -1,11 +1,17 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { nanoid } from "nanoid";
+import { ethers } from "ethers";
 import { uploadHistory, downloadHistory, uploadProfile, downloadProfile } from "@/lib/0g/storage";
 import { getStorageIndex, upsertStorageIndex } from "@/lib/db/client";
 import { calculateStreak, createDefaultProfile } from "@/lib/zeroviza/streak";
 import { retrieveArticles, formatRetrievedAsContext } from "@/lib/rag/retriever";
 import { runAgentLoop } from "@/lib/agent/loop";
+import {
+  getCaseAgentNFTAddress,
+  findTokensOwnedBy,
+  updateAgentMetadata,
+} from "@/lib/contracts/CaseAgentNFT";
 import type { ChatMessage, InferenceMessage } from "@/types/chat";
 import type { UserProfile } from "@/types/user";
 
@@ -42,6 +48,28 @@ async function persistToStorage(
 
     await upsertStorageIndex(walletAddress, historyResult.rootHash, profileResult.rootHash);
     console.log("[/api/chat/stream] persisted");
+
+    // Sync the user's INFT (if minted) so the chain commitment matches the
+    // freshly uploaded encrypted blob. Best-effort: any failure is logged
+    // but does not block the chat response.
+    if (getCaseAgentNFTAddress()) {
+      try {
+        const tokens = await findTokensOwnedBy(walletAddress);
+        if (tokens.length > 0) {
+          const newContentHash = ethers.keccak256(
+            ethers.toUtf8Bytes(JSON.stringify(withStreak))
+          );
+          await updateAgentMetadata({
+            tokenId: tokens[0],
+            newURI: profileResult.rootHash,
+            newContentHash,
+          });
+          console.log(`[/api/chat/stream] INFT #${tokens[0]} metadata refreshed`);
+        }
+      } catch (inftErr) {
+        console.warn("[/api/chat/stream] INFT metadata refresh failed:", inftErr);
+      }
+    }
   } catch (err) {
     console.error("[/api/chat/stream] background persist failed:", err);
   }
