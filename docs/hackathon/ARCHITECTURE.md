@@ -176,12 +176,15 @@ struct LawyerRecord {
 | `StorageIndex` | `0xbBb868BcA991c8C9e184F236bD7AfAB79e4F602b` | [chainscan-galileo.0g.ai](https://chainscan-galileo.0g.ai) |
 | `LawyerRegistry` | `0x009158249E904A7089f8649ABb9b9268780E2D9a` | [chainscan-galileo.0g.ai](https://chainscan-galileo.0g.ai) |
 
-### Mainnet (0G Aristotle) — deploying for hackathon submission
+### Mainnet (0G Aristotle, Chain ID 16661) — live for hackathon submission
 
-| Contract | Address | Status |
+| Contract | Address | Explorer |
 |---|---|---|
-| `StorageIndex` | *pending grant* | Deploy script ready at [`contracts/script/DeployMainnet.s.sol`](../../contracts/script/DeployMainnet.s.sol) |
-| `LawyerRegistry` | *pending grant* | Deploy script ready |
+| `StorageIndex` | `0x486aFe3c1e3dE1253B31C82A30d5270e63403c27` | [chainscan.0g.ai](https://chainscan.0g.ai/address/0x486aFe3c1e3dE1253B31C82A30d5270e63403c27) |
+| `LawyerRegistry` | `0x93A931e8ec6193c2D9F4faf28e85AaBEd9601eEC` | [chainscan.0g.ai](https://chainscan.0g.ai/address/0x93A931e8ec6193c2D9F4faf28e85AaBEd9601eEC) |
+| `CaseAgentNFT` (ERC-7857 INFT) | `0xF89EC187E9062CDE86719273b85F3C6974A40829` | [chainscan.0g.ai](https://chainscan.0g.ai/address/0xF89EC187E9062CDE86719273b85F3C6974A40829) |
+
+Operator wallet: `0xE5A747FA09271C8d479Cf718b205F8aADd6E4C30` (pays gas on every user-facing tx, so users never need to hold native 0G).
 
 ---
 
@@ -202,5 +205,12 @@ struct LawyerRecord {
 | Storage | [`src/lib/0g/storage.ts`](../../src/lib/0g/storage.ts) | ~140 |
 | Chain (StorageIndex) | [`src/lib/contracts/StorageIndex.ts`](../../src/lib/contracts/StorageIndex.ts) | ~90 |
 | Chain (LawyerRegistry) | [`src/lib/contracts/LawyerRegistry.ts`](../../src/lib/contracts/LawyerRegistry.ts) | ~150 |
+| Chain (CaseAgentNFT / ERC-7857) | [`src/lib/contracts/CaseAgentNFT.ts`](../../src/lib/contracts/CaseAgentNFT.ts) | ~190 |
 | Solidity (StorageIndex) | [`contracts/src/StorageIndex.sol`](../../contracts/src/StorageIndex.sol) | ~100 |
 | Solidity (LawyerRegistry) | [`contracts/src/LawyerRegistry.sol`](../../contracts/src/LawyerRegistry.sol) | ~160 |
+| Solidity (CaseAgentNFT) | [`contracts/src/CaseAgentNFT.sol`](../../contracts/src/CaseAgentNFT.sol) | ~340 |
+| Agent loop | [`src/lib/agent/loop.ts`](../../src/lib/agent/loop.ts) | ~200 |
+| Agent tools | [`src/lib/agent/tools.ts`](../../src/lib/agent/tools.ts) | ~480 |
+| Agent morning routine | [`src/lib/agent/morningRoutine.ts`](../../src/lib/agent/morningRoutine.ts) | ~190 |
+| Agent hire (a2a payment) | [`src/lib/agent/hire.ts`](../../src/lib/agent/hire.ts) | ~80 |
+| RAG retriever | [`src/lib/rag/retriever.ts`](../../src/lib/rag/retriever.ts) | ~150 |
