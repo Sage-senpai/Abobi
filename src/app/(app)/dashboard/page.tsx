@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useCaseStore } from "@/store/caseStore";
 import { CASE_STATUS_LABELS, type CaseStatus } from "@/types/case";
+import { AgentINFTPanel } from "@/components/agent/AgentINFTPanel";
 
 const ACTIVE_STATUSES: CaseStatus[] = [
   "preparing",
@@ -250,6 +251,9 @@ export default function DashboardPage() {
                 )}
               </motion.div>
             )}
+
+            {/* Case Agent INFT */}
+            <AgentINFTPanel />
 
             {/* Activity */}
             <ActivityGraph />
