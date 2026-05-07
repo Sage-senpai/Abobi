@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { useCaseStore } from "@/store/caseStore";
 import { CASE_STATUS_LABELS, type CaseStatus } from "@/types/case";
 import { AgentINFTPanel } from "@/components/agent/AgentINFTPanel";
+import { AgentInboxPanel } from "@/components/agent/AgentInboxPanel";
 
 const ACTIVE_STATUSES: CaseStatus[] = [
   "preparing",
@@ -251,6 +252,9 @@ export default function DashboardPage() {
                 )}
               </motion.div>
             )}
+
+            {/* Agent Inbox */}
+            <AgentInboxPanel />
 
             {/* Case Agent INFT */}
             <AgentINFTPanel />
