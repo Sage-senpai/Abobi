@@ -1,12 +1,13 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { streamFromZeroViza } from "@/lib/0g/compute";
 import { uploadHistory, downloadHistory, uploadProfile, downloadProfile } from "@/lib/0g/storage";
 import { getStorageIndex, upsertStorageIndex } from "@/lib/db/client";
 import { calculateStreak, createDefaultProfile } from "@/lib/zeroviza/streak";
 import { retrieveArticles, formatRetrievedAsContext } from "@/lib/rag/retriever";
+import { runAgentLoop } from "@/lib/agent/loop";
 import type { ChatMessage, InferenceMessage } from "@/types/chat";
+import type { UserProfile } from "@/types/user";
 
 export const maxDuration = 60;
 export const runtime = "nodejs";
@@ -19,23 +20,24 @@ const RequestSchema = z.object({
 async function persistToStorage(
   walletAddress: string,
   updatedHistory: ChatMessage[],
-  index: { profileRootHash?: string | null } | null
+  baseProfile: UserProfile,
+  profilePatch: Partial<UserProfile>,
+  newCases: UserProfile["cases"],
+  newInbox: UserProfile["agentInbox"],
+  index: { historyRootHash?: string | null } | null
 ) {
   try {
-    let profile = null;
-    if (index?.profileRootHash) {
-      try {
-        profile = await downloadProfile(index.profileRootHash);
-      } catch {
-        profile = null;
-      }
-    }
-    if (!profile) profile = createDefaultProfile(walletAddress);
-    const updatedProfile = calculateStreak(profile);
+    const merged: UserProfile = {
+      ...baseProfile,
+      ...profilePatch,
+      cases: [...(newCases ?? []), ...(baseProfile.cases ?? [])],
+      agentInbox: [...(newInbox ?? []), ...(baseProfile.agentInbox ?? [])].slice(0, 50),
+    };
+    const withStreak = calculateStreak(merged);
 
     const [historyResult, profileResult] = await Promise.all([
       uploadHistory(updatedHistory),
-      uploadProfile(updatedProfile),
+      uploadProfile(withStreak),
     ]);
 
     await upsertStorageIndex(walletAddress, historyResult.rootHash, profileResult.rootHash);
@@ -43,6 +45,7 @@ async function persistToStorage(
   } catch (err) {
     console.error("[/api/chat/stream] background persist failed:", err);
   }
+  void index;
 }
 
 function sseEvent(data: object): string {
@@ -60,17 +63,26 @@ export async function POST(req: NextRequest) {
   }
   const { message, walletAddress } = parsed.data;
 
-  // Load history before streaming begins
+  // Load profile + history from 0G
   let history: ChatMessage[] = [];
+  let profile: UserProfile | null = null;
   let index: Awaited<ReturnType<typeof getStorageIndex>> = null;
   try {
     index = await getStorageIndex(walletAddress);
     if (index?.historyRootHash) {
       history = await downloadHistory(index.historyRootHash);
     }
+    if (index?.profileRootHash) {
+      try {
+        profile = await downloadProfile(index.profileRootHash);
+      } catch {
+        profile = null;
+      }
+    }
   } catch {
     history = [];
   }
+  if (!profile) profile = createDefaultProfile(walletAddress);
 
   const contextHistory: InferenceMessage[] = history
     .slice(-10)
@@ -84,7 +96,7 @@ export async function POST(req: NextRequest) {
   };
   const assistantId = nanoid();
 
-  // Retrieve grounding context from the resource library
+  // RAG retrieval
   const retrieved = retrieveArticles(message, 3);
   const groundingContext = formatRetrievedAsContext(retrieved);
   const sources = retrieved.flatMap((r, i) =>
@@ -111,21 +123,68 @@ export async function POST(req: NextRequest) {
       let accumulated = "";
       let provider = "unknown";
       let errored: string | null = null;
+      const toolCalls: Array<{ name: string; uiSummary: string; ok: boolean }> = [];
 
+      const generator = runAgentLoop({
+        userMessage: message,
+        history: contextHistory,
+        profile: profile!,
+        walletAddress,
+        groundingContext,
+      });
+
+      let result;
       try {
-        for await (const ev of streamFromZeroViza(message, contextHistory, groundingContext)) {
-          if (ev.type === "chunk" && ev.content) {
-            accumulated += ev.content;
-            if (ev.providerAddress) provider = ev.providerAddress;
-            send({ type: "chunk", content: ev.content });
-          } else if (ev.type === "done") {
-            if (ev.providerAddress) provider = ev.providerAddress;
-          } else if (ev.type === "error") {
-            errored = ev.error ?? "Stream error";
+        while (true) {
+          const next = await generator.next();
+          if (next.done) {
+            result = next.value;
+            break;
+          }
+          const ev = next.value;
+          switch (ev.kind) {
+            case "tool_start":
+              send({ type: "tool_start", name: ev.toolName, id: ev.toolCallId });
+              break;
+            case "tool_done":
+              toolCalls.push({
+                name: ev.toolName ?? "unknown",
+                uiSummary: ev.uiSummary ?? "",
+                ok: !!ev.ok,
+              });
+              send({
+                type: "tool_done",
+                name: ev.toolName,
+                id: ev.toolCallId,
+                ok: ev.ok,
+                summary: ev.uiSummary,
+              });
+              break;
+            case "tool_error":
+              toolCalls.push({
+                name: ev.toolName ?? "unknown",
+                uiSummary: ev.error ?? "Tool failed",
+                ok: false,
+              });
+              send({ type: "tool_error", name: ev.toolName, error: ev.error });
+              break;
+            case "final_chunk":
+              if (ev.content) {
+                accumulated += ev.content;
+                if (ev.providerAddress) provider = ev.providerAddress;
+                send({ type: "chunk", content: ev.content });
+              }
+              break;
+            case "final_done":
+              if (ev.providerAddress) provider = ev.providerAddress;
+              break;
+            case "error":
+              errored = ev.error ?? "Agent error";
+              break;
           }
         }
       } catch (err) {
-        errored = err instanceof Error ? err.message : "Stream failed";
+        errored = err instanceof Error ? err.message : "Agent failed";
       }
 
       if (errored && !accumulated) {
@@ -141,13 +200,22 @@ export async function POST(req: NextRequest) {
         timestamp: Date.now(),
         provider,
         sources: sources.length > 0 ? sources : undefined,
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
       };
       send({ type: "done", message: assistantMsg });
       controller.close();
 
-      // Background persist after stream closes
       const updatedHistory = [...history, userMsg, assistantMsg];
-      persistToStorage(walletAddress, updatedHistory, index).catch(() => {});
+      const acc = result ?? { profilePatch: {}, casesAppended: [], inboxAppended: [] };
+      persistToStorage(
+        walletAddress,
+        updatedHistory,
+        profile!,
+        acc.profilePatch,
+        acc.casesAppended,
+        acc.inboxAppended,
+        index
+      ).catch(() => {});
     },
   });
 

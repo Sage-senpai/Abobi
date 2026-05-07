@@ -299,6 +299,155 @@ export async function sendToZeroViza(
   throw new Error(`All inference providers failed. ${summary}`);
 }
 
+// ─── Tool-calling inference (non-stream) ─────────────────────────────────────
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+export type ToolCallResult =
+  | { kind: "tool_calls"; calls: ToolCall[]; providerAddress: string; rawAssistantMessage: unknown }
+  | { kind: "content"; content: string; providerAddress: string };
+
+interface OpenAIChoice {
+  message: {
+    role: string;
+    content: string | null;
+    tool_calls?: Array<{
+      id: string;
+      type: "function";
+      function: { name: string; arguments: string };
+    }>;
+  };
+  finish_reason?: string;
+}
+
+interface OpenAIResponse {
+  choices: OpenAIChoice[];
+}
+
+function parseChoice(choice: OpenAIChoice, providerAddress: string, rawMessage: unknown): ToolCallResult {
+  const tc = choice.message.tool_calls;
+  if (tc && tc.length > 0) {
+    return {
+      kind: "tool_calls",
+      providerAddress,
+      rawAssistantMessage: rawMessage,
+      calls: tc.map((c) => ({
+        id: c.id,
+        name: c.function.name,
+        arguments: c.function.arguments,
+      })),
+    };
+  }
+  return {
+    kind: "content",
+    providerAddress,
+    content: choice.message.content ?? "",
+  };
+}
+
+async function callDirectWithTools(
+  messages: unknown[],
+  tools: unknown[],
+  modelId: string
+): Promise<ToolCallResult> {
+  const apiUrl = process.env.OG_COMPUTE_API_URL!;
+  const apiKey = process.env.OG_COMPUTE_API_KEY!;
+  const endpoint = `${apiUrl.replace(/\/+$/, "")}/chat/completions`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: modelId,
+      messages,
+      tools,
+      tool_choice: "auto",
+      max_tokens: INFERENCE_CONFIG.maxTokens,
+      temperature: INFERENCE_CONFIG.temperature,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`0G Compute tool-call error ${response.status}: ${errText}`);
+  }
+
+  const data = (await response.json()) as OpenAIResponse;
+  const choice = data.choices[0];
+  if (!choice) throw new Error("0G Compute returned no choices");
+  return parseChoice(choice, "0g-compute-direct", choice.message);
+}
+
+async function callGroqWithTools(
+  messages: unknown[],
+  tools: unknown[]
+): Promise<ToolCallResult> {
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages,
+      tools,
+      tool_choice: "auto",
+      max_tokens: INFERENCE_CONFIG.maxTokens,
+      temperature: INFERENCE_CONFIG.temperature,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Groq tool-call error ${response.status}: ${errText}`);
+  }
+
+  const data = (await response.json()) as OpenAIResponse;
+  const choice = data.choices[0];
+  if (!choice) throw new Error("Groq returned no choices");
+  return parseChoice(choice, "groq-fallback", choice.message);
+}
+
+/**
+ * Non-streaming inference that supports OpenAI-compatible tool calling.
+ * Used inside the agent loop to decide whether to call tools or finalize.
+ */
+export async function chatWithTools(
+  messages: unknown[],
+  tools: unknown[]
+): Promise<ToolCallResult> {
+  const errors: string[] = [];
+
+  if (has0GDirect()) {
+    try {
+      return await callDirectWithTools(messages, tools, MODEL_ID);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[chatWithTools/0g-direct] ${msg}`);
+      errors.push(`0g-direct: ${msg}`);
+    }
+  }
+
+  if (hasGroqFallback()) {
+    try {
+      return await callGroqWithTools(messages, tools);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`groq: ${msg}`);
+    }
+  }
+
+  throw new Error(`chatWithTools failed: ${errors.join(" | ") || "no provider configured"}`);
+}
+
 // ─── Streaming inference ─────────────────────────────────────────────────────
 
 export interface StreamEvent {
@@ -400,6 +549,84 @@ async function* callGroqAPIStream(
   }
 
   yield* parseSSEStream(response);
+}
+
+/**
+ * Streaming inference that accepts a pre-built messages array (any roles
+ * including 'tool'). Use this from the agent loop after tool calls have been
+ * resolved and you want to stream the final user-facing answer.
+ */
+export async function* streamRawMessages(
+  messages: unknown[]
+): AsyncGenerator<StreamEvent, void, unknown> {
+  const errors: string[] = [];
+
+  if (has0GDirect()) {
+    try {
+      const apiUrl = process.env.OG_COMPUTE_API_URL!;
+      const apiKey = process.env.OG_COMPUTE_API_KEY!;
+      const endpoint = `${apiUrl.replace(/\/+$/, "")}/chat/completions`;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: MODEL_ID,
+          messages,
+          max_tokens: INFERENCE_CONFIG.maxTokens,
+          temperature: INFERENCE_CONFIG.temperature,
+          stream: true,
+        }),
+      });
+      if (!response.ok) throw new Error(`0G stream error ${response.status}: ${await response.text()}`);
+      let any = false;
+      for await (const chunk of parseSSEStream(response)) {
+        any = true;
+        yield { type: "chunk", content: chunk, providerAddress: "0g-compute-direct" };
+      }
+      if (any) {
+        yield { type: "done", providerAddress: "0g-compute-direct" };
+        return;
+      }
+    } catch (err) {
+      errors.push(`0g-direct: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  if (hasGroqFallback()) {
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages,
+          max_tokens: INFERENCE_CONFIG.maxTokens,
+          temperature: INFERENCE_CONFIG.temperature,
+          stream: true,
+        }),
+      });
+      if (!response.ok) throw new Error(`Groq stream error ${response.status}: ${await response.text()}`);
+      let any = false;
+      for await (const chunk of parseSSEStream(response)) {
+        any = true;
+        yield { type: "chunk", content: chunk, providerAddress: "groq-fallback" };
+      }
+      if (any) {
+        yield { type: "done", providerAddress: "groq-fallback" };
+        return;
+      }
+    } catch (err) {
+      errors.push(`groq: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  yield { type: "error", error: errors.join(" | ") || "No streaming provider configured" };
 }
 
 /**

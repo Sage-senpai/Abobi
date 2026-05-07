@@ -5,16 +5,28 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/hooks/useWallet";
 import { nanoid } from "nanoid";
 import { useChatStore } from "@/store/chatStore";
-import type { ChatMessage, ChatSource } from "@/types/chat";
+import type { ChatMessage, ChatSource, ToolCallSummary } from "@/types/chat";
 
 interface SSEEvent {
-  type: "start" | "chunk" | "done" | "error" | "sources";
+  type:
+    | "start"
+    | "chunk"
+    | "done"
+    | "error"
+    | "sources"
+    | "tool_start"
+    | "tool_done"
+    | "tool_error";
   content?: string;
   message?: ChatMessage;
   assistantId?: string;
   userMessageId?: string;
   error?: string;
   sources?: ChatSource[];
+  name?: string;
+  id?: string;
+  ok?: boolean;
+  summary?: string;
 }
 
 async function* readSSE(response: Response): AsyncGenerator<SSEEvent, void, unknown> {
@@ -101,6 +113,7 @@ export function useChat() {
         }
 
         let received = "";
+        const liveToolCalls: ToolCallSummary[] = [];
 
         for await (const ev of readSSE(res)) {
           if (ev.type === "chunk" && ev.content) {
@@ -108,6 +121,20 @@ export function useChat() {
             appendToMessage(assistantMsg.id, ev.content);
           } else if (ev.type === "sources" && ev.sources) {
             updateMessage(assistantMsg.id, { sources: ev.sources });
+          } else if (ev.type === "tool_start" && ev.name) {
+            liveToolCalls.push({ name: ev.name, uiSummary: "Working…", ok: true });
+            updateMessage(assistantMsg.id, { toolCalls: [...liveToolCalls] });
+          } else if (ev.type === "tool_done" && ev.name) {
+            const idx = liveToolCalls.findIndex((t) => t.name === ev.name && t.uiSummary === "Working…");
+            if (idx >= 0) {
+              liveToolCalls[idx] = { name: ev.name, uiSummary: ev.summary ?? "Done", ok: !!ev.ok };
+            } else {
+              liveToolCalls.push({ name: ev.name, uiSummary: ev.summary ?? "Done", ok: !!ev.ok });
+            }
+            updateMessage(assistantMsg.id, { toolCalls: [...liveToolCalls] });
+          } else if (ev.type === "tool_error" && ev.name) {
+            liveToolCalls.push({ name: ev.name, uiSummary: ev.error ?? "Tool failed", ok: false });
+            updateMessage(assistantMsg.id, { toolCalls: [...liveToolCalls] });
           } else if (ev.type === "done" && ev.message) {
             updateMessage(assistantMsg.id, {
               id: ev.message.id,
@@ -115,13 +142,14 @@ export function useChat() {
               provider: ev.message.provider,
               timestamp: ev.message.timestamp,
               sources: ev.message.sources,
+              toolCalls: ev.message.toolCalls ?? liveToolCalls,
             });
           } else if (ev.type === "error") {
             throw new Error(ev.error ?? "Stream error");
           }
         }
 
-        if (!received) {
+        if (!received && liveToolCalls.length === 0) {
           throw new Error("No response received");
         }
 

@@ -1,7 +1,58 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { ChatMessage, ChatSource } from "@/types/chat";
+import type { ChatMessage, ChatSource, ToolCallSummary } from "@/types/chat";
+
+const TOOL_ICONS: Record<string, string> = {
+  lookup_embassy: "\u{1F3DB}",
+  find_service_provider: "\u{2696}",
+  create_case: "\u{1F4C4}",
+  extract_profile_facts: "\u{1F464}",
+  schedule_reminder: "\u{23F0}",
+  draft_document: "\u{270D}",
+};
+
+const TOOL_LABELS: Record<string, string> = {
+  lookup_embassy: "Looking up embassy",
+  find_service_provider: "Searching providers",
+  create_case: "Creating case",
+  extract_profile_facts: "Saving profile facts",
+  schedule_reminder: "Scheduling reminder",
+  draft_document: "Drafting document",
+};
+
+function ToolCallsBlock({ calls }: { calls: ToolCallSummary[] }) {
+  if (calls.length === 0) return null;
+  return (
+    <div className="mb-2 space-y-1.5">
+      {calls.map((c, i) => {
+        const icon = TOOL_ICONS[c.name] ?? "\u{1F527}";
+        const label = TOOL_LABELS[c.name] ?? c.name;
+        const isPending = c.uiSummary === "Working…";
+        return (
+          <div
+            key={`${c.name}-${i}`}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-medium border ${
+              isPending
+                ? "bg-amber-50 border-amber-200 text-amber-800"
+                : c.ok
+                ? "bg-[#FEF2F2] border-[#FECACA] text-[#0F172A]"
+                : "bg-slate-50 border-slate-200 text-slate-600"
+            }`}
+          >
+            <span className="text-sm leading-none">{icon}</span>
+            <span className="font-bold">{label}</span>
+            {isPending ? (
+              <span className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <span className="text-[10px] text-[#64748B]">· {c.uiSummary}</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function ProviderBadge({ provider }: { provider: string }) {
   const is0G =
@@ -95,6 +146,9 @@ export function ChatBubble({ message, index }: ChatBubbleProps) {
       )}
 
       <div className="flex flex-col max-w-[78%]">
+        {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
+          <ToolCallsBlock calls={message.toolCalls} />
+        )}
         <div
           className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
             isUser
@@ -102,7 +156,10 @@ export function ChatBubble({ message, index }: ChatBubbleProps) {
               : "bg-white text-[#0F172A] border border-[#E2E8F0] rounded-bl-sm shadow-sm"
           }`}
         >
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+          {!message.content && !isUser && (
+            <p className="text-[#94A3B8] text-xs italic">Agent is working…</p>
+          )}
         </div>
         {!isUser && message.sources && message.sources.length > 0 && (
           <SourcesBlock sources={message.sources} />
