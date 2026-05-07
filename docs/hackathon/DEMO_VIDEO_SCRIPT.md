@@ -1,183 +1,216 @@
 # ZeroViza Demo Video — Shot List (3 min max)
 
-> Hackathon judges will watch this ONCE. Every second has to earn its place.
+> Hackathon judges watch this once. Track 3 (Agentic Economy & Autonomous
+> Applications). The story to sell is **agents that act, on chain, with
+> data the user owns**, not "another chatbot".
 
 ## Recording checklist before you hit record
 
-- [ ] Chrome in a **clean profile** (no extensions visible in tab bar)
-- [ ] Screen resolution 1920×1080
-- [ ] Close all other tabs, Slack, notifications
-- [ ] Dev tools CLOSED (unless a shot explicitly calls for them)
-- [ ] Wallet on **0G Aristotle Mainnet** (not testnet)
-- [ ] Have 2 Chrome windows ready: **app** + **0G explorer**
-- [ ] Have 1 passport/ID photo ready to drag-drop (sanitized — use a blurred sample)
-- [ ] Mic test: speak clearly, no background noise
-- [ ] Use Loom, OBS, or ScreenStudio — no phone cameras
-- [ ] Record in one take if possible, cut later
+- [ ] Chrome with a clean profile (no extensions in the tab bar)
+- [ ] Resolution 1920×1080
+- [ ] Close Slack, notifications, every other tab
+- [ ] Wallet connected to **0G Aristotle Mainnet** (chain id 16661)
+- [ ] Operator wallet has at least 1 0G for hire-receipt tx
+- [ ] Two windows ready: **app** + **chainscan.0g.ai**
+- [ ] Have one verified service-provider already registered with `acceptsHires: true` and a `flatRateUSD`
+- [ ] One sample passport image ready (blurred sample)
+- [ ] Mic test, no fans, no background
+- [ ] One take if possible, cut later
 
 ---
 
-## Scene-by-scene shot list
+## Story arc (3 minutes)
+
+> **Hook → AI advisor with tools → Agent worked overnight → Agent hires on chain → Mint the agent as an INFT → On-chain proof → CTA**
+
+The agentic angle is the spine. Every scene must tie back to "the agent did this for you" or "you own this on chain".
+
+---
 
 ### Scene 1 — Hook (0:00 – 0:12)
 
-**Visual**: Full-screen ZeroViza landing page `/connect`, logo prominent
+**Visual**: Cold open on the ZeroViza landing page, logo prominent.
 
 **Voiceover**:
-> "280 million people live outside their country of birth. Most can't afford a lawyer. And the apps that do help them leak their most private data to centralized servers. ZeroViza fixes both."
+> "My uncle once flew Lagos to Abuja for a US visa interview. Wrong appointment day. Came back with nothing but a flight receipt. Most immigrants can't afford a lawyer, and the apps that do help leak their case files to centralized servers. ZeroViza fixes both, with an AI agent the user actually owns."
 
-**Action**: None. Just the landing page sitting still.
+**Action**: Hold on the landing page for the duration of the VO.
 
 ---
 
-### Scene 2 — Product intro (0:12 – 0:25)
+### Scene 2 — Connect wallet (0:12 – 0:22)
 
-**Visual**: Scroll down the landing page slowly, showing the "Powered by 0G" footer + wallet options
+**Visual**: Click "Connect Wallet" → pick MetaMask → land on dashboard.
 
 **Voiceover**:
-> "ZeroViza is a decentralized AI immigration advisor — built entirely on 0G. Free AI guidance in 30+ languages. Tamper-proof document storage. On-chain verified lawyers. No central database. Anywhere."
+> "Connect any EVM wallet. No password, no email. Your wallet is your identity, and from now on it's also the key to a personal AI agent."
 
-**Action**: One smooth scroll from top to footer.
+**Action**: Cut wallet popup if it lingers. Land on the dashboard tiles fast.
 
 ---
 
-### Scene 3 — Connect wallet (0:25 – 0:40)
+### Scene 3 — Agent in action with tool calls (0:22 – 1:05) ← **HERO SHOT**
 
-**Visual**: Click "Connect Wallet" → RainbowKit modal opens → show all 10 wallet options → click MetaMask → connect → auto-redirect to dashboard
+**Visual**: Click AI Advisor in sidebar. Type a question that triggers two tools.
 
-**Voiceover**:
-> "Connect any EVM wallet — MetaMask, OKX, Phantom, Coinbase. No password. No email. Your wallet is your identity."
+**Suggested prompt**:
+> *"I'm a Nigerian software engineer in Lagos with a Master's, English fluent, targeting a US H-1B. Where do I file in Lagos?"*
+
+**Voiceover** (over the streaming response):
+> "When I ask, the agent doesn't just generate text. It calls tools. Watch the chips. It's saving my profile facts to my 0G Storage blob. It's looking up the actual US Consulate in Lagos with the live phone and appointment URL. Then it answers grounded in the result, with citations to USCIS pulled from a thirty-plus article guide library."
 
 **Action**:
-1. Click "Connect Wallet"
-2. Pause 1 second on the wallet list so viewers can see the 10+ options
-3. Click MetaMask
-4. Approve in extension popup (cut this if it looks too long)
-5. Land on dashboard
+1. Type the prompt, hit Enter
+2. **Tool chips appear in real time** under the assistant bubble:
+   - "Saving profile facts: citizenship, currentCountry, profession, …"
+   - "Looking up embassy · Found 1 United States mission"
+3. Final answer streams in below
+4. Scroll the answer and **point at the bracketed citations [1] [2]**
+5. Hover the **provider badge** showing "0G Compute" with the pulsing red dot
+
+**What to emphasize in VO**: The agent took actions that changed state on 0G Storage. Not a stateless chatbot.
 
 ---
 
-### Scene 4 — AI advisor in action (0:40 – 1:20) **← THE HERO SHOT**
+### Scene 4 — Agent inbox, the agent worked overnight (1:05 – 1:30)
 
-**Visual**: Click AI Advisor → type a real question → watch AI response stream in
+**Visual**: Click Dashboard. Hit "Run agent now" on the Agent Inbox tile.
 
 **Voiceover**:
-> "Ask anything. Here's a real question: what visa options does a Nigerian software engineer have for the US? The AI response comes from GLM-5 running on 0G Compute Network — decentralized inference, paid for by the app, not the user."
+> "The agent runs even when I'm not here. This is its inbox. One tap and it scans every open case, flags stale ones, and writes today's action item, all powered by 0G Compute. In production, a daily cron does this automatically."
 
 **Action**:
-1. Click "AI Advisor" in sidebar
-2. Type: **"I'm a software engineer from Nigeria. What US visa options do I have?"**
-3. Let the response stream in naturally — DON'T speed this up, the streaming is impressive
-4. Once response is visible, scroll through it so judges can see the quality
-5. Highlight the "Online · 0G Compute · Not legal advice" badge at the top
-
-**Key thing to emphasize in VO**: "The app pays for inference — users pay zero. That's critical for a service targeting people who can't afford lawyers."
+1. Already on the dashboard
+2. Click **Run agent now** on the Agent Inbox tile
+3. Wait for the green "Agent ran. Analyzed N cases, added M items"
+4. Inbox populates with the daily summary + flagged reminders
+5. Hover one inbox item to show the timestamp
 
 ---
 
-### Scene 5 — Document vault (1:20 – 1:45)
+### Scene 5 — Hire a verified provider on chain (1:30 – 2:00) ← **AGENTIC ECONOMY MONEY SHOT**
 
-**Visual**: Navigate to Documents → drag-drop a passport image → show upload → show the file in the vault with its 0G root hash
+**Visual**: Continue in chat. Type a request that triggers `find_service_provider` then `hire_provider`.
+
+**Suggested prompt**:
+> *"I need someone to translate my Yoruba transcript to English. Can you hire one?"*
 
 **Voiceover**:
-> "Upload sensitive documents — passports, birth certificates, asylum papers. They're stored on 0G Storage, content-addressed, tamper-proof. The hash you see is a Merkle root — the document can't be altered without changing the hash."
+> "Watch what happens. The agent finds a verified translator from the on-chain registry, quotes the price, asks me to confirm. I say yes. The agent calls hire_provider, which records the hire on 0G chain — the operator wallet sends a tiny native transfer to the translator's wallet with the entire hire receipt, user wallet, task, and agreed fee, encoded in the tx calldata. The chain is the receipt."
 
 **Action**:
-1. Click "Documents" in sidebar
-2. Drag-drop a sample image file
-3. Wait for "Uploading to 0G..." indicator
-4. Show the completed upload with the root hash visible
-5. Hover the hash to show the full value
+1. Type the prompt
+2. Tool chip: **Searching providers · Found 1 verified Translator**
+3. Agent quotes the rate, asks "Confirm $X for Yoruba transcript translation?"
+4. Type **"yes"**
+5. Tool card appears: bordered red **"Agent hire receipt"** with tx hash and **"View on 0G Scan"** link
+6. **Click the link** — chainscan opens in a new tab showing the tx
+7. **Click the Input Data field on chainscan** — the JSON receipt is right there in the tx calldata
+8. Cut back to the app
+
+**This is the scene judges will replay. Make it crisp.**
 
 ---
 
-### Scene 6 — Lawyer registry (1:45 – 2:00)
+### Scene 6 — Mint the agent as an INFT (2:00 – 2:30)
 
-**Visual**: Navigate to Lawyers → show the verified lawyer list → click a lawyer card
+**Visual**: Back to dashboard. Find the **Case Agent INFT panel**. Click **Mint Case Agent INFT**.
 
 **Voiceover**:
-> "Need a human? Verified lawyers are registered on-chain. Their credentials can't be faked — every status change is a transaction on 0G Chain."
+> "Now I tokenize the agent itself. ZeroViza implements ERC-7857, the INFT standard 0G is championing. The agent's encrypted memory, persona facts, chat history, every case I just created, lives on 0G Storage. The hash commitment is bound on chain. I own this token. I can transfer it. I can clone it. I can authorize a verified lawyer to use it without giving up ownership."
 
 **Action**:
-1. Click "Lawyers"
-2. Show the grid of verified lawyers
-3. Click one card to show details
+1. Click **Mint Case Agent INFT**
+2. Wait for "Minting on 0G mainnet…" → green "Minted: 0xabc…"
+3. Tile flips to the active state showing **Token #N · ERC-7857 · 0G Aristotle**
+4. Show the encrypted memory rootHash + content hash on the tile
+5. Click **View contract on 0G Scan** — chainscan opens to the CaseAgentNFT contract page
+6. Show the AgentMinted event in the transactions list
 
 ---
 
-### Scene 7 — THE PROOF: 0G Explorer (2:00 – 2:40) **← CRITICAL**
+### Scene 7 — On-chain proof (2:30 – 2:50)
 
-This is the scene that proves 0G is actually being used. Judges WILL verify.
-
-**Visual**: Open 0G Explorer in a new tab → paste the `StorageIndex` contract address → show the contract page with real transactions
+**Visual**: chainscan.0g.ai with three tabs ready.
 
 **Voiceover**:
-> "Here's the proof this isn't just a UI demo. This is the StorageIndex contract on 0G Aristotle Mainnet. Every one of these transactions is a real user uploading data. This is the LawyerRegistry contract — here's the verify transaction for the lawyer I just showed you. And here's a 0G Storage root hash fetched live from the indexer."
+> "Three contracts on 0G Aristotle mainnet do all the work. StorageIndex maps every wallet to its encrypted blobs. LawyerRegistry verifies service providers. CaseAgentNFT is the INFT we just minted. Every upload, every hire, every mint is a real transaction on a public ledger."
 
 **Action**:
-1. Open `https://chainscan.0g.ai` in new tab
-2. Paste StorageIndex contract address
-3. Scroll through the transactions tab — show 3-5 real txs
-4. Open LawyerRegistry contract address in another tab
-5. Show at least 1 `LawyerVerified` event
-6. (Optional power move) Open 0G Storage indexer URL + a root hash to show the raw content
+1. Tab to **StorageIndex** contract — show recent RootsUpdated events
+2. Tab to **LawyerRegistry** — show LawyerVerified events
+3. Tab to **CaseAgentNFT** — show AgentMinted events
+4. Cut back to the app
 
 ---
 
-### Scene 8 — Impact close + CTA (2:40 – 3:00)
+### Scene 8 — Close (2:50 – 3:00)
 
-**Visual**: Back to the ZeroViza home page → show the tagline + URL
+**Visual**: Back to the dashboard, all tiles populated (case agent active, inbox with items, fresh case in cases tile).
 
 **Voiceover**:
-> "ZeroViza. AI immigration legal aid that can't be shut down, can't be subpoenaed, can't be afforded to ignore. Built on 0G. Try it at zeroviza.vercel.app."
+> "ZeroViza. An immigration agent the user owns, that acts on its own, settles work on chain, and runs entirely on 0G. Try it at zeroviza.vercel.app."
 
-**Action**: Final shot — clean landing page, URL visible.
+**Action**: One clean shot of the dashboard. Cut.
 
 ---
 
 ## Post-production
 
-- **Add captions** — non-native English judges will thank you (and APAC hackathon)
-- **Color correct** if your screen looks washed out
-- **Cut the wallet approval modal** if it takes more than 2 seconds
-- **Add a 1-frame watermark** with GitHub URL and contract address in the corner of every scene so anyone pausing can copy them
-- **Export at 1080p 30fps** — not 4K (wastes bandwidth, judges watch on laptops)
-- **Upload to Loom AND YouTube** (Loom is faster for judges, YouTube is the official submission link)
+- **Captions** — APAC track, non-native English judges. Caption every word.
+- **Lower-third callouts**: when chips appear in Scene 3, overlay the tool name in a lower-third for 1.5 seconds each
+- **Highlight ring** on the tx-hash link in Scene 5 so judges can see exactly where to click
+- **Frozen frame at 2:25** showing the minted INFT tile while the VO finishes the sentence — gives the eye time to read the rootHash
+- **Watermark** with GitHub URL + the three contract addresses in a corner of every scene (so anyone pausing can copy them)
+- **Export 1080p 30fps**, not 4K
+- **Upload to YouTube + Loom**. YouTube is the official submission link.
 
 ---
 
-## What to say in the Loom description / YouTube title
+## YouTube description template
 
-**Title**: `ZeroViza — Decentralized AI Immigration Legal Aid on 0G | 0G APAC Hackathon 2026`
+**Title**: `ZeroViza — On-chain AI Immigration Agent (ERC-7857) | 0G APAC Hackathon | Track 3`
 
-**Description template**:
+**Body**:
 ```
-ZeroViza is a consumer AI dApp that uses 3 of the 5 0G pillars end-to-end:
+ZeroViza is an AI immigration agent that the user owns end-to-end on 0G.
 
-• 0G Compute — GLM-5 inference via broker (zero-knowledge of user)
-• 0G Storage — documents, chat history, profiles (content-addressed)
-• 0G Chain — StorageIndex + LawyerRegistry smart contracts (operator pattern)
+What you just watched:
+1. Tool-calling agent that updates 0G Storage from the chat (profile,
+   embassy lookup, RAG-grounded answers with USCIS citations)
+2. Proactive morning routine that wakes up to flag stale cases and
+   draft action items — runs on 0G Compute
+3. Agent-to-agent on-chain hire: the agent finds a verified translator
+   from the on-chain registry and pays them via a native 0G transfer
+   with the hire receipt encoded in the tx calldata
+4. ERC-7857 INFT mint: the agent's encrypted memory blob lives on 0G
+   Storage, the hash commitment is bound on chain, the user owns the
+   token
 
-Built for: #0GHackathon #BuildOn0G
+Built on three 0G pillars: Compute (GLM-5 inference), Storage
+(content-addressed encrypted blobs), Chain (three smart contracts on
+Aristotle mainnet, chain id 16661).
 
-Contracts (0G Aristotle Mainnet):
-• StorageIndex:   0x<paste address>
-• LawyerRegistry: 0x<paste address>
+Contracts (verifiable on https://chainscan.0g.ai):
+• StorageIndex   : 0x486aFe3c1e3dE1253B31C82A30d5270e63403c27
+• LawyerRegistry : 0x93A931e8ec6193c2D9F4faf28e85AaBEd9601eEC
+• CaseAgentNFT   : 0xF89EC187E9062CDE86719273b85F3C6974A40829
 
-Live demo:  https://zeroviza.vercel.app
-GitHub:     https://github.com/Sage-senpai/Abobi
-Docs:       [link to docs/hackathon/ARCHITECTURE.md]
+Live: https://zeroviza.vercel.app
+Source: https://github.com/Sage-senpai/Abobi
+Architecture: docs/hackathon/ARCHITECTURE.md
 
-Team: Divine (@yourhandle)
 Track: 3 — Agentic Economy & Autonomous Applications
+Tags: #0GHackathon #BuildOn0G
 ```
 
 ---
 
-## If anything breaks during recording
+## If something breaks during recording
 
-1. **Mainnet compute timeout** → fall back to Groq + say "running on 0G Compute Network with Groq as emergency fallback for demo reliability"
-2. **Upload fails** → show the Vercel logs briefly to prove it's trying, then cut to a pre-recorded successful upload
-3. **Contracts not deployed yet** → record with testnet addresses, add a text overlay: "Mainnet deploy pending 0G grant approval"
+1. **0G Compute slow** → the Groq emergency fallback will kick in automatically. Say "0G Compute with a Groq circuit-breaker for demo reliability" and keep going. The provider badge will show grey but the demo continues.
+2. **Hire tx pending too long** → cut to a pre-recorded successful hire scene from your local archive. Don't wait on screen.
+3. **Mint fails because no profile yet** → send any message in chat first to seed the profile blob, then return to dashboard and mint.
+4. **chainscan.0g.ai returns slow** → keep the explorer tabs pre-loaded before recording, just refresh.
 
-Don't lie about what's working. Judges can tell, and they appreciate honesty more than polish.
+Honesty beats polish — if the broker isn't up and you fall back to Groq, say so. Judges respect that more than fake screenshots.

@@ -18,13 +18,13 @@
 
 ## 0G Integration Proof
 
-ZeroViza integrates **three core 0G pillars** — every piece of data and every AI response flows through 0G:
+ZeroViza integrates **three core 0G pillars** — every piece of data, every AI response, and every agent action flows through 0G:
 
 | 0G Component | How ZeroViza Uses It | Evidence |
 |---|---|---|
-| **0G Compute** | AI immigration advisor runs inference via `@0glabs/0g-serving-broker`. Server wallet funds compute so users pay nothing. | [`src/lib/0g/compute.ts`](src/lib/0g/compute.ts) |
-| **0G Storage** | All user data is content-addressed on 0G Storage via `@0glabs/0g-ts-sdk` — chat history (JSONL), user profiles (JSON), uploaded documents (PDF/images up to 25MB), and lawyer metadata. | [`src/lib/0g/storage.ts`](src/lib/0g/storage.ts) |
-| **0G Chain** | Two smart contracts on 0G Galileo: `StorageIndex.sol` (wallet → 0G root hash mapping) and `LawyerRegistry.sol` (on-chain lawyer verification with operator pattern). 39 Forge tests pass. | [`contracts/src/`](contracts/src/) |
+| **0G Compute** | AI immigration agent runs inference via 0G Compute's OpenAI-compatible API (GLM-5 FP8 744B). Server wallet funds compute so users pay nothing. Tool-calling iterations use the same provider; the final answer streams token-by-token via SSE. Groq is wired only as an emergency circuit-breaker. | [`src/lib/0g/compute.ts`](src/lib/0g/compute.ts) |
+| **0G Storage** | All user data is content-addressed on 0G Storage via `@0glabs/0g-ts-sdk` — chat history (JSONL), user profiles + extracted persona facts + cases + agent inbox (JSON), uploaded documents, lawyer metadata, embassy directory snapshots. | [`src/lib/0g/storage.ts`](src/lib/0g/storage.ts) |
+| **0G Chain** | Three smart contracts on 0G Aristotle mainnet (chain id 16661): `StorageIndex.sol`, `LawyerRegistry.sol`, and `CaseAgentNFT.sol` — an ERC-7857 INFT for the user's personal AI agent. Operator wallet pays gas. 39 Forge tests pass. Agent-to-agent hires record full receipts in tx calldata, viewable on chainscan. | [`contracts/src/`](contracts/src/) |
 
 ### Architecture
 
@@ -40,38 +40,46 @@ The **operator pattern** lets a server wallet pay for storage and compute on beh
 
 ### Smart Contracts
 
-**0G Aristotle Mainnet** (hackathon submission)
+**0G Aristotle Mainnet** — chain id 16661, hackathon submission, all live
 
 | Contract | Address | Purpose |
 |----------|---------|---------|
-| `StorageIndex` | *pending mainnet deploy* — see [`ARCHITECTURE.md`](docs/hackathon/ARCHITECTURE.md#contract-addresses) | Maps wallet → 0G root hashes (history, profile, documents) |
-| `LawyerRegistry` | *pending mainnet deploy* | On-chain lawyer verification + metadata URI |
+| `StorageIndex` | [`0x486aFe3c1e3dE1253B31C82A30d5270e63403c27`](https://chainscan.0g.ai/address/0x486aFe3c1e3dE1253B31C82A30d5270e63403c27) | Maps wallet → 0G root hashes (history, profile, documents) |
+| `LawyerRegistry` | [`0x93A931e8ec6193c2D9F4faf28e85AaBEd9601eEC`](https://chainscan.0g.ai/address/0x93A931e8ec6193c2D9F4faf28e85AaBEd9601eEC) | On-chain verified service-provider registry (lawyers, RCICs, OISC advisers, MARA agents, translators, evaluators, notaries) |
+| `CaseAgentNFT` | [`0xF89EC187E9062CDE86719273b85F3C6974A40829`](https://chainscan.0g.ai/address/0xF89EC187E9062CDE86719273b85F3C6974A40829) | ERC-7857 INFT — the user's personal AI agent as a transferable, cloneable, authorizable token |
 
-**0G Galileo Testnet** (active development + reviewer testing)
+Operator wallet `0xE5A747FA09271C8d479Cf718b205F8aADd6E4C30` pays gas on every user-facing tx, so users never need to hold native 0G.
 
-| Contract | Address | Explorer |
-|----------|---------|---------|
-| `StorageIndex` | `0xbBb868BcA991c8C9e184F236bD7AfAB79e4F602b` | [View on Galileo](https://chainscan-galileo.0g.ai/address/0xbBb868BcA991c8C9e184F236bD7AfAB79e4F602b) |
-| `LawyerRegistry` | `0x009158249E904A7089f8649ABb9b9268780E2D9a` | [View on Galileo](https://chainscan-galileo.0g.ai/address/0x009158249E904A7089f8649ABb9b9268780E2D9a) |
-
-Mainnet deploy script: [`contracts/script/DeployMainnet.s.sol`](contracts/script/DeployMainnet.s.sol)
+Deploy scripts: [`contracts/script/DeployMainnet.s.sol`](contracts/script/DeployMainnet.s.sol), [`contracts/script/DeployCaseAgent.s.sol`](contracts/script/DeployCaseAgent.s.sol).
 
 ---
 
 ## Features
 
+### Agentic stack
+
+| Feature | What the agent actually does |
+|---|---|
+| **Tool-calling agent loop** | Function-calling iterations on every chat turn. Tools: `lookup_embassy`, `find_service_provider`, `create_case`, `extract_profile_facts`, `hire_provider`. Tool calls are non-streamed; the final answer streams token-by-token via SSE. |
+| **Persona memory** | The agent extracts structured facts (citizenship, target countries, profession, English level, family, prior visa history) and persists them to the user's 0G profile blob. Reloaded into the system prompt on every future turn. |
+| **Proactive morning routine** | Scans active cases for staleness, upcoming biometrics, and upcoming interviews; calls 0G Compute for a one-line action item; appends to the user's agent inbox. Manual "Run agent now" button + cron-ready endpoint. |
+| **On-chain agent-to-agent hires** | The agent finds a verified provider, quotes the rate, asks for confirmation, then sends a tiny native 0G transfer to the provider's wallet with the full hire receipt encoded in the tx calldata. The chain is the receipt — viewable on chainscan.0g.ai. |
+| **ERC-7857 INFT minting** | The user's personal Case Agent is mintable as an INFT (`CaseAgentNFT.sol`). Encrypted memory blob lives on 0G Storage, hash commitment on 0G Chain. Owner can transfer (oracle re-encryption), clone, or `authorizeUsage` to a verified provider without giving up ownership. |
+| **INFT auto-refresh** | After every chat persist, the contract's metadataURI + contentHash are updated to bind the chain commitment to the freshly uploaded encrypted blob. |
+
+### User-facing surfaces
+
 | Feature | Description |
-|---------|-------------|
-| AI Immigration Advisor | Multilingual AI guided by USCIS, IRCC, UK Home Office, UNHCR, and 29+ destination countries |
-| Document Vault | Drag-drop upload to 0G Storage — tamper-proof, content-addressed, verifiable |
-| Lawyer Registry | On-chain verified lawyer directory with admin approval/rejection flow |
-| Eligibility Quiz | 4-step interactive quiz for instant visa eligibility assessment |
-| Document Checklists | Country + visa-type specific document requirement lists |
-| Resources Hub | Immigration guides for US, UK, Canada, EU, Australia, UAE, Japan, Nigeria + more |
-| Dashboard | Activity graph, daily streak, session stats |
-| Demo Mode | Full app preview without a wallet — zero friction onboarding |
-| Multilingual | 30+ languages: English, Spanish, French, Arabic, Hindi, Yoruba, Igbo, Hausa, Swahili, Amharic, Tagalog, Farsi, Ukrainian + auto-detect |
-| 10+ Wallet Options | MetaMask, OKX, Phantom, Trust, Coinbase, Brave, Rabby, SubWallet, WalletConnect |
+|---|---|
+| AI Immigration Advisor | Multilingual AI grounded by USCIS, IRCC, UK Home Office, UNHCR, BAMF + a 30+ article guide library covering 15 countries. RAG: top-3 articles retrieved per turn, injected into the prompt with bracketed citations and a clickable Sources panel under each bubble. |
+| Document Vault | Drag-drop upload to 0G Storage — tamper-proof, content-addressed, verifiable. |
+| Embassy & Consulate Directory | 22 missions across Nigeria, Ghana, Kenya, the US, UK, Canada, Germany. Phone, email, hours, jurisdiction notes, direct appointment-portal links. Live snapshot can be served from 0G Storage via an admin endpoint, no redeploy required. |
+| Verified Service-Provider Marketplace | 8 categories: lawyers, Canadian RCICs, UK OISC advisers, Australian MARA agents, court-certified translators, credential evaluators, notaries, document specialists. Optional agent-hireable opt-in with flat rate. |
+| Visa Case Tracker | 8 statuses, full timeline of every state change. Local-first with Zustand + localStorage; auto-syncs to the user's 0G profile on every mutation. |
+| Resources Hub | 30+ articles across 15 countries (US, UK, Canada, EU, Germany, Australia, NL, NZ, Japan, Singapore, UAE, Brazil, Mexico, South Korea, Saudi Arabia, India, Nigeria). |
+| Dashboard | Agent inbox tile, INFT panel, case summary, activity graph, daily streak. |
+| Multilingual | 30+ languages auto-detected by the AI: English, Spanish, French, Arabic, Hindi, Yoruba, Igbo, Hausa, Swahili, Amharic, Tagalog, Farsi, Ukrainian, more. |
+| 10+ Wallet Options | MetaMask, OKX, Phantom, Trust, Coinbase, Brave, Rabby, SubWallet, WalletConnect. |
 
 ---
 

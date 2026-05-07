@@ -16,8 +16,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
-import { downloadProfile } from "@/lib/0g/storage";
-import { getStorageIndex } from "@/lib/db/client";
+import { downloadProfile, uploadProfile } from "@/lib/0g/storage";
+import { getStorageIndex, upsertStorageIndex } from "@/lib/db/client";
 import { mintAgent, balanceOf, findTokensOwnedBy, getCaseAgentNFTAddress } from "@/lib/contracts/CaseAgentNFT";
 import { createDefaultProfile } from "@/lib/zeroviza/streak";
 
@@ -56,24 +56,25 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Load profile (creates a default if none exists)
+    // Load profile from 0G; bootstrap a default + seed it if none exists
     const index = await getStorageIndex(wallet);
     let profile = null;
-    if (index?.profileRootHash) {
+    let profileRoot = index?.profileRootHash ?? null;
+
+    if (profileRoot) {
       try {
-        profile = await downloadProfile(index.profileRootHash);
+        profile = await downloadProfile(profileRoot);
       } catch {
         profile = null;
       }
     }
-    if (!profile) profile = createDefaultProfile(wallet);
 
-    const profileRoot = index?.profileRootHash;
-    if (!profileRoot) {
-      return NextResponse.json(
-        { error: "No profile blob found on 0G yet. Send a chat message first so the agent has memory to seal." },
-        { status: 400 }
-      );
+    if (!profile) {
+      profile = createDefaultProfile(wallet);
+      // Seed the user's profile blob on 0G so the INFT has something to seal.
+      const seed = await uploadProfile(profile);
+      profileRoot = seed.rootHash;
+      await upsertStorageIndex(wallet, index?.historyRootHash ?? "", profileRoot);
     }
 
     // Content hash binds the chain commitment to the encrypted blob
