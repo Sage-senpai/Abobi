@@ -1,12 +1,8 @@
 "use client";
 
 import { ConnectButton as RainbowConnectButton } from "@rainbow-me/rainbowkit";
-import { useSwitchChain } from "wagmi";
-import { ogAristotleMainnet } from "@/lib/wallet/config";
 
 export function ConnectButton() {
-  const { switchChain, isPending: isSwitching } = useSwitchChain();
-
   return (
     <RainbowConnectButton.Custom>
       {({
@@ -35,15 +31,11 @@ export function ConnectButton() {
               >
                 Connect Wallet
               </button>
-            ) : chain.unsupported ? (
-              <button
-                onClick={() => switchChain({ chainId: ogAristotleMainnet.id })}
-                disabled={isSwitching}
-                className="px-4 py-2 bg-[#DC2626] text-white text-sm font-semibold rounded-xl hover:bg-[#B91C1C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-red-200"
-              >
-                {isSwitching ? "Switching..." : "Switch to 0G"}
-              </button>
             ) : (
+              // Connected. Whether or not the chain is supported, route the
+              // user to the RainbowKit account modal — it has built-in
+              // chain-switch UI, so the bespoke "Switch to 0G" button is
+              // redundant.
               <button
                 onClick={openAccountModal}
                 className="flex items-center gap-2 px-3 py-2 bg-white border border-[#E2E8F0] rounded-xl text-sm font-medium text-[#0F172A] hover:border-[#DC2626] hover:text-[#DC2626] transition-all shadow-sm"
