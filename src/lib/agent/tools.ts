@@ -5,6 +5,7 @@ import { findEmbassies } from "@/data/embassies";
 import { getVerifiedLawyers, getLawyerByWallet } from "@/lib/db/client";
 import { hireProvider, type HireResult } from "@/lib/agent/hire";
 import { findTokensOwnedBy, getCaseAgentNFTAddress } from "@/lib/contracts/CaseAgentNFT";
+import { chatWithTools } from "@/lib/0g/compute";
 import type { VisaCase, CaseStatus } from "@/types/case";
 import type { UserProfile, UserPersona, AgentInboxItem } from "@/types/user";
 import type { Embassy } from "@/types/embassy";
@@ -384,30 +385,67 @@ async function handleHireProvider(
     };
   }
 
-  const inboxItem: AgentInboxItem = {
-    id: nanoid(),
-    createdAt: Date.now(),
-    type: "tool-result",
-    title: `Hired ${provider.fullName} ($${args.agreedFeeUSD})`,
-    detail: `Task: ${args.taskDescription.slice(0, 140)} · Receipt on chain (tx ${hire.txHash.slice(0, 10)}…)`,
-    read: false,
-  };
+  const inboxItems: AgentInboxItem[] = [
+    {
+      id: nanoid(),
+      createdAt: Date.now(),
+      type: "tool-result",
+      title: `Hired ${provider.fullName} ($${args.agreedFeeUSD})`,
+      detail: `Task: ${args.taskDescription.slice(0, 140)} · Receipt on chain (tx ${hire.txHash.slice(0, 10)}…)`,
+      read: false,
+    },
+  ];
+
+  // If this is a demo persona, generate a simulated reply via 0G Compute
+  // using the persona's system prompt. Append it as a separate inbox item
+  // so the user gets a tangible follow-up from the "hired" provider.
+  let demoReply: string | null = null;
+  if (provider.isDemo && provider.personaPrompt) {
+    try {
+      const result = await chatWithTools(
+        [
+          { role: "system", content: provider.personaPrompt },
+          {
+            role: "user",
+            content:
+              `A new client just hired you for the following task. Acknowledge the hire, ask one or two clarifying questions, and outline the first 2-3 concrete steps you will take. Keep it under 200 words. Task: ${args.taskDescription}`,
+          },
+        ],
+        []
+      );
+      if (result.kind === "content") {
+        demoReply = result.content.trim();
+        inboxItems.push({
+          id: nanoid(),
+          createdAt: Date.now() + 1,
+          type: "tool-result",
+          title: `Reply from ${provider.fullName} (demo persona)`,
+          detail: demoReply.slice(0, 800),
+          read: false,
+        });
+      }
+    } catch {
+      // Non-fatal — the on-chain hire still succeeded
+    }
+  }
 
   return {
     ok: true,
-    uiSummary: `Hired ${provider.fullName} for $${args.agreedFeeUSD}`,
+    uiSummary: `Hired ${provider.fullName} for $${args.agreedFeeUSD}${provider.isDemo ? " (demo persona)" : ""}`,
     modelPayload: {
       success: true,
       provider: provider.fullName,
       providerWallet: args.providerWallet,
       agreedFeeUSD: args.agreedFeeUSD,
+      isDemo: !!provider.isDemo,
       txHash: hire.txHash,
       blockNumber: hire.blockNumber,
       receiptHash: hire.receiptHash,
       caseAgentTokenId,
       explorerUrl: `https://chainscan.0g.ai/tx/${hire.txHash}`,
+      demoReply: demoReply ?? undefined,
     },
-    inboxItems: [inboxItem],
+    inboxItems,
     explorerUrl: `https://chainscan.0g.ai/tx/${hire.txHash}`,
     txHash: hire.txHash,
   };

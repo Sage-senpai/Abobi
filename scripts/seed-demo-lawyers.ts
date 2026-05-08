@@ -1,0 +1,187 @@
+/* eslint-disable no-console */
+/**
+ * Standalone demo-persona seeder for the 0G APAC Hackathon.
+ *
+ *   npx tsx --env-file=.env.local scripts/seed-demo-lawyers.ts
+ *
+ * Self-contained: uses ethers + the 0G SDK directly so it doesn't trip
+ * over the `server-only` boundary the Next.js helpers enforce. Each
+ * demo persona's metadata gets uploaded to 0G Storage, then registered
+ * + verified on the LawyerRegistry contract from the operator key.
+ */
+
+import { writeFile, unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { ethers } from "ethers";
+import { DEMO_LAWYERS } from "../src/data/demoLawyers";
+
+const RPC_URL = process.env.NEXT_PUBLIC_0G_RPC_URL ?? "https://evmrpc.0g.ai";
+const INDEXER_RPC = process.env.OG_INDEXER_RPC;
+const PRIVATE_KEY = process.env.OG_SERVER_PRIVATE_KEY;
+const REGISTRY_ADDR = process.env.NEXT_PUBLIC_LAWYER_REGISTRY_ADDRESS;
+
+if (!INDEXER_RPC) throw new Error("OG_INDEXER_RPC missing");
+if (!PRIVATE_KEY) throw new Error("OG_SERVER_PRIVATE_KEY missing");
+if (!REGISTRY_ADDR) throw new Error("NEXT_PUBLIC_LAWYER_REGISTRY_ADDRESS missing");
+
+// Minimal ABI for the calls we need
+const REGISTRY_ABI = [
+  {
+    type: "function",
+    name: "applyOnBehalf",
+    inputs: [
+      { name: "wallet", type: "address" },
+      { name: "metadataURI", type: "string" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "verifyLawyer",
+    inputs: [{ name: "wallet", type: "address" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "getStatus",
+    inputs: [{ name: "wallet", type: "address" }],
+    outputs: [{ name: "", type: "uint8" }],
+    stateMutability: "view",
+  },
+];
+
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+const registry = new ethers.Contract(REGISTRY_ADDR, REGISTRY_ABI, wallet);
+
+async function uploadMetadata(json: object): Promise<string> {
+  const buf = Buffer.from(JSON.stringify(json), "utf-8");
+  const tmp = path.join(tmpdir(), `zv-seed-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  await writeFile(tmp, buf);
+  try {
+    // Lazy require to avoid ESM/CJS interop issues
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const sdk = require("@0gfoundation/0g-ts-sdk") as typeof import("@0gfoundation/0g-ts-sdk");
+    const file = await sdk.ZgFile.fromFilePath(tmp);
+    const [tree, treeErr] = await file.merkleTree();
+    if (treeErr) throw new Error(`merkleTree: ${treeErr}`);
+    const indexer = new sdk.Indexer(INDEXER_RPC!);
+    const [, uploadErr] = await indexer.upload(
+      file,
+      RPC_URL,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      wallet as any
+    );
+    if (uploadErr) throw new Error(`upload: ${uploadErr}`);
+    const root = tree!.rootHash();
+    if (!root) throw new Error("rootHash null");
+    return root;
+  } finally {
+    await unlink(tmp).catch(() => null);
+  }
+}
+
+async function main() {
+  console.log(`operator: ${wallet.address}`);
+  console.log(`registry: ${REGISTRY_ADDR}`);
+  console.log(`rpc:      ${RPC_URL}`);
+  console.log(`indexer:  ${INDEXER_RPC}\n`);
+
+  const reports: Array<{
+    name: string;
+    addr: string;
+    status: string;
+    rootHash?: string;
+    applyTx?: string;
+    verifyTx?: string;
+    error?: string;
+  }> = [];
+
+  for (const demo of DEMO_LAWYERS) {
+    const r: (typeof reports)[number] = {
+      name: demo.fullName,
+      addr: demo.walletAddress,
+      status: "failed",
+    };
+    console.log(`[${demo.fullName}] ${demo.walletAddress}`);
+
+    try {
+      // Idempotency: getStatus returns enum (0=None, 1=Pending, 2=Verified, 3=Rejected)
+      const statusRaw = (await (registry.getStatus as ethers.BaseContractMethod<[string], bigint>).staticCall(
+        demo.walletAddress
+      )) as bigint;
+      const existingStatus = Number(statusRaw);
+      if (existingStatus === 2) {
+        r.status = "skipped-already-verified";
+        console.log("  ↷ already verified");
+        reports.push(r);
+        continue;
+      }
+
+      console.log("  → upload metadata");
+      const metadata = {
+        walletAddress: demo.walletAddress,
+        fullName: demo.fullName,
+        email: demo.email,
+        barNumber: demo.barNumber,
+        jurisdiction: demo.jurisdiction,
+        specializations: demo.specializations,
+        yearsExperience: demo.yearsExperience,
+        languages: demo.languages,
+        bio: demo.bio,
+        website: demo.website ?? "",
+        serviceType: demo.serviceType,
+        flatRateUSD: demo.flatRateUSD,
+        hourlyRateUSD: demo.hourlyRateUSD,
+        acceptsHires: demo.acceptsHires ?? true,
+        isDemo: true,
+        personaPrompt: demo.personaPrompt,
+        _disclaimer:
+          "ZeroViza HACKATHON DEMO PERSONA. Replies generated by 0G Compute. Not a real licensed practitioner. 0G APAC Hackathon 2026.",
+      };
+      const root = await uploadMetadata(metadata);
+      r.rootHash = root;
+      console.log(`     ${root}`);
+
+      if (existingStatus === 0) {
+        console.log("  → applyOnBehalf");
+        const applyTx = (await registry.applyOnBehalf(demo.walletAddress, root)) as ethers.TransactionResponse;
+        await applyTx.wait(1);
+        r.applyTx = applyTx.hash;
+        console.log(`     ${applyTx.hash}`);
+      } else {
+        console.log("  ↷ already pending, skipping apply");
+      }
+
+      console.log("  → verifyLawyer");
+      const verifyTx = (await registry.verifyLawyer(demo.walletAddress)) as ethers.TransactionResponse;
+      await verifyTx.wait(1);
+      r.verifyTx = verifyTx.hash;
+      console.log(`     ${verifyTx.hash}`);
+
+      r.status = "seeded";
+      console.log("  ✓ seeded\n");
+    } catch (err) {
+      r.error = err instanceof Error ? err.message : String(err);
+      console.error(`  ✗ ${r.error}\n`);
+    }
+
+    reports.push(r);
+  }
+
+  console.log("=== summary ===");
+  console.log(JSON.stringify({
+    total: reports.length,
+    seeded: reports.filter((r) => r.status === "seeded").length,
+    skipped: reports.filter((r) => r.status.startsWith("skipped")).length,
+    failed: reports.filter((r) => r.status === "failed").length,
+  }, null, 2));
+}
+
+main().catch((e) => {
+  console.error("FATAL:", e);
+  process.exit(1);
+});
