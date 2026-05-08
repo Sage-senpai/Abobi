@@ -23,14 +23,33 @@ export async function GET(req: NextRequest) {
     const index = await getStorageIndex(wallet);
 
     let profile;
+    let needsSeed = false;
+
     if (index?.profileRootHash) {
       try {
         profile = await downloadProfile(index.profileRootHash);
       } catch {
+        // 0G download failed transiently — DO NOT regenerate a fresh
+        // default; that would reset createdAt every time. Fall through
+        // to a default but flag for seeding only if there's no on-chain
+        // pointer yet (handled below).
         profile = createDefaultProfile(wallet);
       }
     } else {
+      // First-time visitor: create default and persist it so subsequent
+      // GETs return the same createdAt instead of a fresh "joined just now".
       profile = createDefaultProfile(wallet);
+      needsSeed = true;
+    }
+
+    if (needsSeed) {
+      try {
+        const result = await uploadProfile(profile);
+        await upsertStorageIndex(wallet, index?.historyRootHash ?? null, result.rootHash);
+      } catch (seedErr) {
+        // Non-fatal — return the default; next GET will retry seeding.
+        console.warn("[/api/profile GET] failed to seed default profile:", seedErr);
+      }
     }
 
     const streak = getStreakData(profile);

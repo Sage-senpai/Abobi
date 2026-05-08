@@ -29,11 +29,25 @@ export function calculateStreak(profile: UserProfile): UserProfile {
 
 export function getStreakData(profile: UserProfile): StreakData {
   const today = todayString();
-  return {
-    current: profile.streak,
-    lastActiveDate: profile.lastActiveDate,
-    isActiveToday: profile.lastActiveDate === today,
-  };
+  const last = profile.lastActiveDate;
+
+  if (!last) {
+    return { current: 0, lastActiveDate: "", isActiveToday: false };
+  }
+
+  if (last === today) {
+    return { current: profile.streak, lastActiveDate: last, isActiveToday: true };
+  }
+
+  const daysSince = differenceInCalendarDays(parseISO(today), parseISO(last));
+
+  // 1 day gap: streak still alive but at risk (user hasn't checked in today)
+  if (daysSince === 1) {
+    return { current: profile.streak, lastActiveDate: last, isActiveToday: false };
+  }
+
+  // 2+ day gap: streak is broken until next activity
+  return { current: 0, lastActiveDate: last, isActiveToday: false };
 }
 
 export function createDefaultProfile(walletAddress: string): UserProfile {
