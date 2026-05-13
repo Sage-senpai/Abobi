@@ -413,6 +413,67 @@ function parseLlamaFunctionTag(
   };
 }
 
+async function callBrokerWithTools(
+  messages: unknown[],
+  tools: unknown[],
+  modelId: string
+): Promise<ToolCallResult> {
+  const providerAddress = process.env.OG_COMPUTE_PROVIDER_ADDRESS;
+  if (!providerAddress) throw new Error("OG_COMPUTE_PROVIDER_ADDRESS not set");
+
+  const broker = await getBroker();
+
+  const requestBody = {
+    model: modelId,
+    messages,
+    tools,
+    tool_choice: "auto",
+    max_tokens: INFERENCE_CONFIG.maxTokens,
+    temperature: INFERENCE_CONFIG.temperature,
+  };
+
+  const headers = await broker.inference.getRequestHeaders(
+    providerAddress,
+    JSON.stringify(requestBody)
+  );
+
+  const metadata = await broker.inference.getServiceMetadata(providerAddress);
+  const baseUrl = metadata.endpoint.replace(/\/+$/, "");
+  const endpoint = `${baseUrl}/chat/completions`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(headers as unknown as Record<string, string>),
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Broker tool-call error ${response.status}: ${errText}`);
+  }
+
+  const data = (await response.json()) as OpenAIResponse;
+  const choice = data.choices[0];
+  if (!choice) throw new Error("Broker returned no choices");
+
+  // Settle on-chain billing — pass content (or empty string if pure tool-call)
+  try {
+    const chatId = response.headers.get("ZG-Res-Key") ?? undefined;
+    await broker.inference.processResponse(
+      providerAddress,
+      chatId,
+      choice.message.content ?? ""
+    );
+  } catch (err) {
+    console.warn("[chatWithTools/broker] processResponse failed:", err);
+  }
+
+  return parseChoice(choice, providerAddress, choice.message);
+}
+
 async function callGroqWithTools(
   messages: unknown[],
   tools: unknown[]
@@ -511,6 +572,16 @@ export async function chatWithTools(
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(`[chatWithTools/0g-direct] ${msg}`);
       errors.push(`0g-direct: ${msg}`);
+    }
+  }
+
+  if (has0GBroker()) {
+    try {
+      return await callBrokerWithTools(messages, tools, MODEL_ID);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[chatWithTools/0g-broker] ${msg}`);
+      errors.push(`0g-broker: ${msg}`);
     }
   }
 
@@ -670,6 +741,54 @@ export async function* streamRawMessages(
       }
     } catch (err) {
       errors.push(`0g-direct: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  if (has0GBroker()) {
+    try {
+      const providerAddress = process.env.OG_COMPUTE_PROVIDER_ADDRESS!;
+      const broker = await getBroker();
+      const requestBody = {
+        model: MODEL_ID,
+        messages,
+        max_tokens: INFERENCE_CONFIG.maxTokens,
+        temperature: INFERENCE_CONFIG.temperature,
+        stream: true,
+      };
+      const headers = await broker.inference.getRequestHeaders(
+        providerAddress,
+        JSON.stringify(requestBody)
+      );
+      const metadata = await broker.inference.getServiceMetadata(providerAddress);
+      const baseUrl = metadata.endpoint.replace(/\/+$/, "");
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(headers as unknown as Record<string, string>),
+        },
+        body: JSON.stringify(requestBody),
+      });
+      if (!response.ok) throw new Error(`Broker stream error ${response.status}: ${await response.text()}`);
+      let any = false;
+      let accumulated = "";
+      for await (const chunk of parseSSEStream(response)) {
+        any = true;
+        accumulated += chunk;
+        yield { type: "chunk", content: chunk, providerAddress };
+      }
+      if (any) {
+        const chatId = response.headers.get("ZG-Res-Key") ?? undefined;
+        try {
+          await broker.inference.processResponse(providerAddress, chatId, accumulated);
+        } catch (err) {
+          console.warn("[streamRawMessages/broker] processResponse failed:", err);
+        }
+        yield { type: "done", providerAddress };
+        return;
+      }
+    } catch (err) {
+      errors.push(`0g-broker: ${err instanceof Error ? err.message : err}`);
     }
   }
 
