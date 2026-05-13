@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,6 +10,7 @@ import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { ChatBubble } from "@/components/chat/ChatBubble";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { useChatStore } from "@/store/chatStore";
+import { useChatSessionsStore } from "@/store/chatSessionsStore";
 import { useChat } from "@/hooks/useChat";
 import type { ChatMessage } from "@/types/chat";
 
@@ -38,24 +39,74 @@ export default function ChatPage() {
   const { address } = useWallet();
   const { messages, isLoading, sendMessage } = useChat();
   const setMessages = useChatStore((s) => s.setMessages);
+  const clearMessages = useChatStore((s) => s.clearMessages);
+  const saveSession = useChatSessionsStore((s) => s.saveSession);
+  const deleteSession = useChatSessionsStore((s) => s.deleteSession);
+  const allSessions = useChatSessionsStore((s) => s.sessions);
   const searchParams = useSearchParams();
   const autoSentRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [sessionsHydrated, setSessionsHydrated] = useState(false);
+
+  useEffect(() => {
+    setSessionsHydrated(true);
+  }, []);
+
+  const walletSessions = useMemo(() => {
+    if (!address) return [];
+    const w = address.toLowerCase();
+    return allSessions
+      .filter((s) => s.walletAddress === w)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  }, [allSessions, address]);
 
   const { data: history } = useQuery({
     queryKey: ["history", address],
     queryFn: () => loadHistory(address!),
-    enabled: !!address,
+    enabled: !!address && activeSessionId === null,
     staleTime: 30_000,
   });
 
   useEffect(() => {
+    if (activeSessionId) return;
     if (history && messages.length === 0) {
       setMessages(history);
     }
-  }, [history, messages.length, setMessages]);
+  }, [history, messages.length, setMessages, activeSessionId]);
+
+  const handleNewChat = () => {
+    if (messages.length > 0 && address && activeSessionId === null) {
+      saveSession(address, messages);
+    }
+    clearMessages();
+    setActiveSessionId(null);
+    autoSentRef.current = false;
+    setHistoryOpen(false);
+  };
+
+  const handleLoadSession = (id: string) => {
+    if (messages.length > 0 && address && activeSessionId === null) {
+      saveSession(address, messages);
+    }
+    const session = allSessions.find((s) => s.id === id);
+    if (!session) return;
+    setMessages(session.messages);
+    setActiveSessionId(id);
+    setHistoryOpen(false);
+  };
+
+  const handleDeleteSession = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteSession(id);
+    if (activeSessionId === id) {
+      setActiveSessionId(null);
+      clearMessages();
+    }
+  };
 
   // Auto-send from ?q= query param
   useEffect(() => {
@@ -100,10 +151,42 @@ export default function ChatPage() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative">
+          <button
+            onClick={() => setHistoryOpen((v) => !v)}
+            title="Chat history"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+              historyOpen
+                ? "border-[#DC2626] text-[#DC2626] bg-[#FEF2F2]"
+                : "border-[#E2E8F0] text-[#64748B] hover:border-[#DC2626] hover:text-[#DC2626]"
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="hidden sm:inline">History</span>
+            {sessionsHydrated && walletSessions.length > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#DC2626] text-white text-[10px] font-bold">
+                {walletSessions.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={handleNewChat}
+            title="Start a new chat"
+            disabled={messages.length === 0 && activeSessionId === null}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-[#64748B] text-xs font-medium hover:border-[#DC2626] hover:text-[#DC2626] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[#E2E8F0] disabled:hover:text-[#64748B] transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <span className="hidden sm:inline">New chat</span>
+          </button>
+
           <Link
             href="/resources"
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-[#64748B] text-xs font-medium hover:border-[#DC2626] hover:text-[#DC2626] transition-colors"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-[#64748B] text-xs font-medium hover:border-[#DC2626] hover:text-[#DC2626] transition-colors"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -111,6 +194,103 @@ export default function ChatPage() {
             Guides
           </Link>
           <ConnectButton />
+
+          <AnimatePresence>
+            {historyOpen && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setHistoryOpen(false)}
+                  className="fixed inset-0 bg-black/20 z-40"
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-[#E2E8F0] shadow-xl z-50 overflow-hidden"
+                >
+                  <div className="px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between">
+                    <h3 className="text-[#0F172A] font-bold text-sm">Chat history</h3>
+                    <button
+                      onClick={() => setHistoryOpen(false)}
+                      className="text-[#94A3B8] hover:text-[#0F172A] transition-colors"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="max-h-[420px] overflow-y-auto">
+                    {!sessionsHydrated ? (
+                      <div className="px-4 py-8 text-center text-[#94A3B8] text-xs">Loading…</div>
+                    ) : walletSessions.length === 0 ? (
+                      <div className="px-4 py-8 text-center">
+                        <p className="text-[#64748B] text-sm font-medium mb-1">No saved chats yet</p>
+                        <p className="text-[#94A3B8] text-xs">
+                          Click &quot;New chat&quot; while a conversation is open to archive it.
+                        </p>
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-[#F1F5F9]">
+                        {walletSessions.map((s) => {
+                          const active = s.id === activeSessionId;
+                          return (
+                            <li key={s.id}>
+                              <button
+                                onClick={() => handleLoadSession(s.id)}
+                                className={`w-full text-left px-4 py-3 hover:bg-[#F8FAFC] transition-colors group flex items-start gap-3 ${
+                                  active ? "bg-[#FEF2F2]" : ""
+                                }`}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p
+                                    className={`text-sm font-medium line-clamp-1 ${
+                                      active ? "text-[#DC2626]" : "text-[#0F172A]"
+                                    }`}
+                                  >
+                                    {s.title}
+                                  </p>
+                                  <p className="text-[#94A3B8] text-[11px] mt-0.5">
+                                    {s.messages.length} message{s.messages.length === 1 ? "" : "s"} ·{" "}
+                                    {new Date(s.updatedAt).toLocaleDateString(undefined, {
+                                      month: "short",
+                                      day: "numeric",
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    })}
+                                  </p>
+                                </div>
+                                <span
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={(e) => handleDeleteSession(s.id, e)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      handleDeleteSession(s.id, e as unknown as React.MouseEvent);
+                                    }
+                                  }}
+                                  title="Delete this chat"
+                                  className="opacity-0 group-hover:opacity-100 text-[#94A3B8] hover:text-[#DC2626] transition-all flex-shrink-0 mt-0.5 cursor-pointer"
+                                >
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                                  </svg>
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 

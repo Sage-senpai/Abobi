@@ -385,6 +385,34 @@ async function callDirectWithTools(
   return parseChoice(choice, "0g-compute-direct", choice.message);
 }
 
+/**
+ * Llama-3.x sometimes emits tool calls as raw text like
+ *   `<function=NAME{"arg": "value"}</function>`
+ * inside the assistant content. Groq's strict validator rejects this with a
+ * 400 `tool_use_failed`, returning the offending string in `failed_generation`.
+ * Recover the intended call so the agent loop can still execute it.
+ */
+function parseLlamaFunctionTag(
+  raw: string
+): { id: string; name: string; arguments: string } | null {
+  if (!raw) return null;
+  // Match <function=NAME{...}</function> or <function=NAME>{...}</function>
+  const m = raw.match(/<function=([a-zA-Z0-9_-]+)>?\s*(\{[\s\S]*?\})\s*<\/function>/);
+  if (!m) return null;
+  const name = m[1];
+  const argsStr = m[2];
+  try {
+    JSON.parse(argsStr);
+  } catch {
+    return null;
+  }
+  return {
+    id: `call_${Math.random().toString(36).slice(2, 10)}`,
+    name,
+    arguments: argsStr,
+  };
+}
+
 async function callGroqWithTools(
   messages: unknown[],
   tools: unknown[]
@@ -407,6 +435,56 @@ async function callGroqWithTools(
 
   if (!response.ok) {
     const errText = await response.text();
+    // Recover from `tool_use_failed` by parsing the Llama-tag tool call
+    if (response.status === 400 && errText.includes("tool_use_failed")) {
+      try {
+        const errJson = JSON.parse(errText) as {
+          error?: { failed_generation?: string };
+        };
+        const failed = errJson.error?.failed_generation ?? "";
+        const recovered = parseLlamaFunctionTag(failed);
+        if (recovered) {
+          const rawAssistantMessage = {
+            role: "assistant",
+            content: null,
+            tool_calls: [
+              {
+                id: recovered.id,
+                type: "function",
+                function: { name: recovered.name, arguments: recovered.arguments },
+              },
+            ],
+          };
+          return {
+            kind: "tool_calls",
+            providerAddress: "groq-fallback",
+            rawAssistantMessage,
+            calls: [recovered],
+          };
+        }
+      } catch {
+        // fall through
+      }
+      // Last resort: retry without tools so the user gets a text response
+      const retry = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages,
+          max_tokens: INFERENCE_CONFIG.maxTokens,
+          temperature: INFERENCE_CONFIG.temperature,
+        }),
+      });
+      if (retry.ok) {
+        const data = (await retry.json()) as OpenAIResponse;
+        const choice = data.choices[0];
+        if (choice) return parseChoice(choice, "groq-fallback", choice.message);
+      }
+    }
     throw new Error(`Groq tool-call error ${response.status}: ${errText}`);
   }
 
