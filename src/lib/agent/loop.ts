@@ -1,6 +1,7 @@
 import "server-only";
 
-import { chatWithTools, streamRawMessages, type StreamEvent } from "@/lib/0g/compute";
+import { chatWithTools, streamRawMessages } from "@/lib/0g/compute";
+import type { DirectAttestation } from "@/lib/0g/compute";
 import { ZEROVIZA_SYSTEM_PROMPT } from "@/lib/zeroviza/prompt";
 import { TOOL_DEFS, executeTool, type ToolResult } from "@/lib/agent/tools";
 import type { UserProfile, AgentInboxItem } from "@/types/user";
@@ -17,6 +18,7 @@ export interface AgentLoopEvent {
   ok?: boolean;
   content?: string;
   providerAddress?: string;
+  attestation?: DirectAttestation;
   error?: string;
   explorerUrl?: string;
   txHash?: string;
@@ -135,7 +137,11 @@ export async function* runAgentLoop(
           any = true;
           yield { kind: "final_chunk", content: ev.content, providerAddress: ev.providerAddress };
         } else if (ev.type === "done") {
-          yield { kind: "final_done", providerAddress: ev.providerAddress ?? result.providerAddress };
+          yield {
+            kind: "final_done",
+            providerAddress: ev.providerAddress ?? result.providerAddress,
+            attestation: ev.attestation,
+          };
         } else if (ev.type === "error") {
           // Streaming failed but we already have non-stream content; emit it whole.
           if (!any && result.content) {

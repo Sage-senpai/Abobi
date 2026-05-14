@@ -30,10 +30,29 @@ import type { InferenceMessage } from "@/types/chat";
  *   OG_COMPUTE_API_URL  — e.g. https://compute-network-1.integratenetwork.work/v1
  *   OG_COMPUTE_API_KEY  — e.g. app-sk-xxx (from 0G dashboard)
  */
+export interface DirectAttestation {
+  providerAddress: string;
+  resKey?: string;
+  responseId?: string;
+  latencyMs?: number;
+  model?: string;
+}
+
+function attestationFromResponse(response: Response, body: { id?: string; model?: string }): DirectAttestation {
+  const providerHeader = response.headers.get("provider") ?? response.headers.get("Provider") ?? "";
+  return {
+    providerAddress: providerHeader,
+    resKey: response.headers.get("zg-res-key") ?? response.headers.get("ZG-Res-Key") ?? undefined,
+    responseId: body.id,
+    latencyMs: Number(response.headers.get("req-cost-time") ?? "") || undefined,
+    model: body.model,
+  };
+}
+
 async function callDirectAPI(
   messages: InferenceMessage[],
   modelId: string
-): Promise<{ content: string }> {
+): Promise<{ content: string; attestation: DirectAttestation }> {
   const apiUrl = process.env.OG_COMPUTE_API_URL!;
   const apiKey = process.env.OG_COMPUTE_API_KEY!;
 
@@ -59,13 +78,15 @@ async function callDirectAPI(
   }
 
   const data = (await response.json()) as {
+    id?: string;
+    model?: string;
     choices: Array<{ message: { content: string } }>;
   };
 
   const content = data.choices[0]?.message?.content;
   if (!content) throw new Error("0G Compute returned empty response");
 
-  return { content };
+  return { content, attestation: attestationFromResponse(response, data) };
 }
 
 // ─── Broker SDK mode (legacy) ────────────────────────────────────────────────
@@ -167,6 +188,7 @@ async function callBrokerAPI(
 export interface ZeroVizaResponse {
   content: string;
   providerAddress: string;
+  attestation?: DirectAttestation;
 }
 
 /**
@@ -248,7 +270,11 @@ export async function sendToZeroViza(
       console.log(`[0G-compute/direct] Calling 0G Compute Network (${MODEL_ID})`);
       const result = await callDirectAPI(messages, MODEL_ID);
       console.log(`[0G-compute/direct] ✓ success`);
-      return { content: result.content, providerAddress: "0g-compute-direct" };
+      return {
+        content: result.content,
+        providerAddress: result.attestation.providerAddress || "0g-compute-direct",
+        attestation: result.attestation,
+      };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(`[0G-compute/direct] ✗ failed: ${msg}`);
@@ -603,6 +629,7 @@ export interface StreamEvent {
   type: "chunk" | "done" | "error";
   content?: string;
   providerAddress?: string;
+  attestation?: DirectAttestation;
   error?: string;
 }
 
@@ -730,13 +757,22 @@ export async function* streamRawMessages(
         }),
       });
       if (!response.ok) throw new Error(`0G stream error ${response.status}: ${await response.text()}`);
+      const directAttestation: DirectAttestation = {
+        providerAddress:
+          response.headers.get("provider") ??
+          response.headers.get("Provider") ??
+          "0g-compute-direct",
+        resKey: response.headers.get("zg-res-key") ?? response.headers.get("ZG-Res-Key") ?? undefined,
+        latencyMs: Number(response.headers.get("req-cost-time") ?? "") || undefined,
+        model: MODEL_ID,
+      };
       let any = false;
       for await (const chunk of parseSSEStream(response)) {
         any = true;
-        yield { type: "chunk", content: chunk, providerAddress: "0g-compute-direct" };
+        yield { type: "chunk", content: chunk, providerAddress: directAttestation.providerAddress };
       }
       if (any) {
-        yield { type: "done", providerAddress: "0g-compute-direct" };
+        yield { type: "done", providerAddress: directAttestation.providerAddress, attestation: directAttestation };
         return;
       }
     } catch (err) {

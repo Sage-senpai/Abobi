@@ -19,6 +19,19 @@ export interface ToolCallSummary {
   txHash?: string;
 }
 
+export interface Attestation {
+  /** Provider wallet that served this response (0x... on 0G mainnet). */
+  providerAddress: string;
+  /** 0G receipt key (ZG-Res-Key header) — broker uses this for processResponse verification. */
+  resKey?: string;
+  /** Provider's chat completion ID. */
+  responseId?: string;
+  /** Inference latency in ms reported by the provider. */
+  latencyMs?: number;
+  /** Model that produced the response. */
+  model?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -28,6 +41,7 @@ export interface ChatMessage {
   provider?: string; // "0g-compute-direct" | "0g-broker" | "groq-fallback" | on-chain provider address
   sources?: ChatSource[];
   toolCalls?: ToolCallSummary[];
+  attestation?: Attestation;
 }
 
 export interface ChatSession {

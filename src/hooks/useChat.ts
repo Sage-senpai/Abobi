@@ -5,7 +5,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/hooks/useWallet";
 import { nanoid } from "nanoid";
 import { useChatStore } from "@/store/chatStore";
-import type { ChatMessage, ChatSource, ToolCallSummary } from "@/types/chat";
+import { useCaseStore } from "@/store/caseStore";
+import type { ChatMessage, ChatSource, ToolCallSummary, Attestation } from "@/types/chat";
+import type { VisaCase } from "@/types/case";
 
 interface SSEEvent {
   type:
@@ -16,7 +18,8 @@ interface SSEEvent {
     | "sources"
     | "tool_start"
     | "tool_done"
-    | "tool_error";
+    | "tool_error"
+    | "attestation";
   content?: string;
   message?: ChatMessage;
   assistantId?: string;
@@ -29,6 +32,8 @@ interface SSEEvent {
   summary?: string;
   explorerUrl?: string;
   txHash?: string;
+  attestation?: Attestation;
+  newCases?: VisaCase[];
 }
 
 async function* readSSE(response: Response): AsyncGenerator<SSEEvent, void, unknown> {
@@ -123,6 +128,8 @@ export function useChat() {
             appendToMessage(assistantMsg.id, ev.content);
           } else if (ev.type === "sources" && ev.sources) {
             updateMessage(assistantMsg.id, { sources: ev.sources });
+          } else if (ev.type === "attestation" && ev.attestation) {
+            updateMessage(assistantMsg.id, { attestation: ev.attestation });
           } else if (ev.type === "tool_start" && ev.name) {
             liveToolCalls.push({ name: ev.name, uiSummary: "Working…", ok: true });
             updateMessage(assistantMsg.id, { toolCalls: [...liveToolCalls] });
@@ -150,6 +157,18 @@ export function useChat() {
               sources: ev.message.sources,
               toolCalls: ev.message.toolCalls ?? liveToolCalls,
             });
+            // Hydrate the local case store with any cases the agent
+            // created this turn so the dashboard + /cases page reflect
+            // them immediately (without waiting for a full page refresh).
+            if (ev.newCases?.length) {
+              const store = useCaseStore.getState();
+              const existingIds = new Set(store.cases.map((c) => c.id));
+              const fresh = ev.newCases.filter((c) => !existingIds.has(c.id));
+              if (fresh.length > 0) {
+                store.replaceCases([...fresh, ...store.cases]);
+                store.setLastSyncedAt(Date.now());
+              }
+            }
           } else if (ev.type === "error") {
             throw new Error(ev.error ?? "Stream error");
           }
@@ -160,12 +179,16 @@ export function useChat() {
         }
 
         await queryClient.invalidateQueries({ queryKey: ["history", address] });
+        // Profile persist happens in the background AFTER the stream
+        // closes, so wait a beat before invalidating — otherwise we'd
+        // refetch the pre-persist profile and miss the new streak +
+        // totals. Re-invalidate again later in case 0G upload was slow.
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ["profile", address] });
-        }, 15_000);
+        }, 4_000);
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ["profile", address] });
-        }, 35_000);
+        }, 20_000);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
         setError(msg);
