@@ -178,6 +178,10 @@ export function useChat() {
             // advance. The UI keeps the assistant bubble visible regardless.
             if (ev.persistError) {
               console.warn("[useChat] 0G persist failed:", ev.persistError);
+              // Soft-surface in the error banner so the user knows their
+              // streak / history didn't save this turn, without burying
+              // the actual AI reply that DID render.
+              setError(`Saved to chat only (not 0G): ${ev.persistError}`);
             }
           } else if (ev.type === "error") {
             throw new Error(ev.error ?? "Stream error");
@@ -185,7 +189,15 @@ export function useChat() {
         }
 
         if (!received && liveToolCalls.length === 0) {
-          throw new Error("No response received");
+          // Belt-and-suspenders: this should be unreachable now that the
+          // agent loop yields an explicit error event when both the
+          // streaming + forced-content retries return empty. If we still
+          // get here, the SSE stream closed cleanly with zero events —
+          // surface a diagnostic message instead of the cryptic "no
+          // response received" so the user (or a judge) knows what to do.
+          throw new Error(
+            "0G Compute returned an empty response. The provider may be momentarily overloaded — try sending the same message again, or rephrase it."
+          );
         }
 
         // Persist (history blob + profile blob + StorageIndex tx) now
