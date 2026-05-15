@@ -12,7 +12,7 @@ import {
   findTokensOwnedBy,
   updateAgentMetadata,
 } from "@/lib/contracts/CaseAgentNFT";
-import type { ChatMessage, InferenceMessage } from "@/types/chat";
+import type { ChatMessage, InferenceMessage, Attestation } from "@/types/chat";
 import type { UserProfile } from "@/types/user";
 
 export const maxDuration = 60;
@@ -95,19 +95,30 @@ export async function POST(req: NextRequest) {
   let history: ChatMessage[] = [];
   let profile: UserProfile | null = null;
   let index: Awaited<ReturnType<typeof getStorageIndex>> = null;
+  // If the user already has a profileRootHash on-chain but we fail to
+  // download it, we MUST NOT persist a fresh default afterwards — that
+  // would wipe their streak, createdAt, cases, persona, and inbox.
+  let profileDownloadFailed = false;
   try {
     index = await getStorageIndex(walletAddress);
     if (index?.historyRootHash) {
-      history = await downloadHistory(index.historyRootHash);
+      try {
+        history = await downloadHistory(index.historyRootHash);
+      } catch (histErr) {
+        console.warn("[/api/chat/stream] history download failed:", histErr);
+      }
     }
     if (index?.profileRootHash) {
       try {
         profile = await downloadProfile(index.profileRootHash);
-      } catch {
+      } catch (profErr) {
+        console.warn("[/api/chat/stream] profile download failed — skipping persist:", profErr);
         profile = null;
+        profileDownloadFailed = true;
       }
     }
-  } catch {
+  } catch (idxErr) {
+    console.warn("[/api/chat/stream] storage index lookup failed:", idxErr);
     history = [];
   }
   if (!profile) profile = createDefaultProfile(walletAddress);
@@ -150,6 +161,7 @@ export async function POST(req: NextRequest) {
 
       let accumulated = "";
       let provider = "unknown";
+      let attestation: Attestation | undefined;
       let errored: string | null = null;
       const toolCalls: Array<{ name: string; uiSummary: string; ok: boolean; explorerUrl?: string; txHash?: string }> = [];
 
@@ -209,6 +221,16 @@ export async function POST(req: NextRequest) {
               break;
             case "final_done":
               if (ev.providerAddress) provider = ev.providerAddress;
+              if (ev.attestation) {
+                attestation = {
+                  providerAddress: ev.attestation.providerAddress,
+                  resKey: ev.attestation.resKey,
+                  responseId: ev.attestation.responseId,
+                  latencyMs: ev.attestation.latencyMs,
+                  model: ev.attestation.model,
+                };
+                send({ type: "attestation", attestation });
+              }
               break;
             case "error":
               errored = ev.error ?? "Agent error";
@@ -233,12 +255,31 @@ export async function POST(req: NextRequest) {
         provider,
         sources: sources.length > 0 ? sources : undefined,
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        attestation,
       };
-      send({ type: "done", message: assistantMsg });
+
+      const acc = result ?? { profilePatch: {}, casesAppended: [], inboxAppended: [] };
+
+      // Surface AI-created cases + inbox items on the SSE stream so the
+      // client can hydrate its local Zustand stores immediately. Otherwise
+      // they would only appear after a full page refresh.
+      send({
+        type: "done",
+        message: assistantMsg,
+        newCases: acc.casesAppended,
+        newInboxItems: acc.inboxAppended,
+      });
       controller.close();
 
+      // Skip persist if we couldn't load the user's real profile this turn —
+      // otherwise we'd overwrite their streak / createdAt / cases / persona
+      // with a fresh default.
+      if (profileDownloadFailed) {
+        console.warn("[/api/chat/stream] skipped persist — profile load failed earlier this turn");
+        return;
+      }
+
       const updatedHistory = [...history, userMsg, assistantMsg];
-      const acc = result ?? { profilePatch: {}, casesAppended: [], inboxAppended: [] };
       persistToStorage(
         walletAddress,
         updatedHistory,

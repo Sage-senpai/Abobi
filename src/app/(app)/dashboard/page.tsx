@@ -70,11 +70,18 @@ export default function DashboardPage() {
   const { data: profileData, isLoading: profileLoading, refetch: refetchProfile } = useProfile();
   const { data: messages, isLoading: historyLoading, refetch: refetchHistory } = useHistory(500);
 
-  const totalMessages = messages?.length ?? 0;
-  const userMessages = messages?.filter((m) => m.role === "user").length ?? 0;
+  // Prefer authoritative counts from history; fall back to the profile's
+  // totalMessages so stats don't read 0 when the history blob is briefly
+  // unavailable on 0G. profile.totalMessages is bumped once per chat turn,
+  // so it tracks "questions asked" closely.
+  const historyUserCount = messages?.filter((m) => m.role === "user").length ?? 0;
+  const historyTotalCount = messages?.length ?? 0;
+  const profileTotal = profileData?.profile.totalMessages ?? 0;
+  const userMessages = Math.max(historyUserCount, profileTotal);
+  const totalMessages = Math.max(historyTotalCount, profileTotal * 2);
   const streak = profileData?.streak.current ?? 0;
   const isLoading = profileLoading || historyLoading;
-  const hasActivity = totalMessages > 0;
+  const hasActivity = userMessages > 0;
 
   const [hydrated, setHydrated] = useState(false);
   const cases = useCaseStore((s) => s.cases);

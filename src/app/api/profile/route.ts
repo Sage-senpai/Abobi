@@ -28,12 +28,17 @@ export async function GET(req: NextRequest) {
     if (index?.profileRootHash) {
       try {
         profile = await downloadProfile(index.profileRootHash);
-      } catch {
-        // 0G download failed transiently — DO NOT regenerate a fresh
-        // default; that would reset createdAt every time. Fall through
-        // to a default but flag for seeding only if there's no on-chain
-        // pointer yet (handled below).
-        profile = createDefaultProfile(wallet);
+      } catch (err) {
+        // 0G download failed transiently for a user who DOES have a real
+        // profile on chain. Returning a default here would make the
+        // dashboard show "Member Since: today" / streak 0 / 0 questions
+        // even though the real values exist. Surface a 503 so React Query
+        // retries instead of showing wrong data.
+        console.warn("[/api/profile GET] profile download failed:", err);
+        return NextResponse.json(
+          { error: "Profile temporarily unavailable on 0G — retry shortly" },
+          { status: 503 }
+        );
       }
     } else {
       // First-time visitor: create default and persist it so subsequent
@@ -80,7 +85,17 @@ export async function PATCH(req: NextRequest) {
 
     let profile;
     if (index?.profileRootHash) {
-      profile = await downloadProfile(index.profileRootHash);
+      try {
+        profile = await downloadProfile(index.profileRootHash);
+      } catch (err) {
+        // Don't overwrite a real on-chain profile with a default just
+        // because 0G is flaky — return 503 so the client retries.
+        console.warn("[/api/profile PATCH] profile download failed:", err);
+        return NextResponse.json(
+          { error: "Profile temporarily unavailable on 0G — retry shortly" },
+          { status: 503 }
+        );
+      }
     } else {
       profile = createDefaultProfile(wallet);
     }

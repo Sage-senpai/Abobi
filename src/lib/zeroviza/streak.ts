@@ -9,21 +9,30 @@ export function calculateStreak(profile: UserProfile): UserProfile {
   const today = todayString();
   const last = profile.lastActiveDate;
 
-  // Already tracked today — no change
-  if (last === today) return profile;
+  // totalMessages tracks "questions asked" — bump on every chat turn,
+  // not just the first one of the day. Previously this lived inside the
+  // streak-update branch below, which meant the counter only moved once
+  // per calendar day.
+  const nextTotalMessages = profile.totalMessages + 1;
+
+  // Same-day chat: keep streak + lastActiveDate, just bump the counter.
+  if (last === today) {
+    return { ...profile, totalMessages: nextTotalMessages };
+  }
 
   const diff = last
     ? differenceInCalendarDays(parseISO(today), parseISO(last))
     : null;
 
-  // Continue streak if consecutive day, otherwise reset to 1
+  // Continue streak if consecutive day, otherwise reset to 1.
+  // First chat ever (diff === null) seeds at 1.
   const newStreak = diff === 1 ? profile.streak + 1 : 1;
 
   return {
     ...profile,
     streak: newStreak,
     lastActiveDate: today,
-    totalMessages: profile.totalMessages + 1,
+    totalMessages: nextTotalMessages,
   };
 }
 

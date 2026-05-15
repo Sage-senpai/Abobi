@@ -21,18 +21,26 @@ export const runtime = "nodejs";
 
 const WALLET_RE = /^0x[a-fA-F0-9]{40}$/;
 
-async function loadProfile(wallet: string): Promise<{ profile: UserProfile; index: Awaited<ReturnType<typeof getStorageIndex>> }> {
+async function loadProfile(wallet: string): Promise<{
+  profile: UserProfile;
+  index: Awaited<ReturnType<typeof getStorageIndex>>;
+  /** True when an on-chain profileRootHash exists but the blob could not be fetched. */
+  downloadFailed: boolean;
+}> {
   const index = await getStorageIndex(wallet);
   let profile: UserProfile | null = null;
+  let downloadFailed = false;
   if (index?.profileRootHash) {
     try {
       profile = await downloadProfile(index.profileRootHash);
-    } catch {
+    } catch (err) {
+      console.warn("[/api/cases] profile download failed:", err);
       profile = null;
+      downloadFailed = true;
     }
   }
   if (!profile) profile = createDefaultProfile(wallet);
-  return { profile, index };
+  return { profile, index, downloadFailed };
 }
 
 export async function GET(req: NextRequest) {
@@ -65,7 +73,18 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { profile, index } = await loadProfile(walletAddress);
+    const { profile, index, downloadFailed } = await loadProfile(walletAddress);
+
+    // Refuse to overwrite a profile we couldn't load — otherwise we'd
+    // replace the user's real streak / createdAt / persona / inbox with
+    // a fresh default just because 0G flaked once. Client should retry.
+    if (downloadFailed) {
+      return NextResponse.json(
+        { error: "Profile temporarily unavailable on 0G — retry shortly" },
+        { status: 503 }
+      );
+    }
+
     const updatedProfile: UserProfile = { ...profile, cases };
 
     const profileResult = await uploadProfile(updatedProfile);
