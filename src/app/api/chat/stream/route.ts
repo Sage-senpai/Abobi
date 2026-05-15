@@ -23,57 +23,75 @@ const RequestSchema = z.object({
   walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid wallet address"),
 });
 
+/**
+ * Persist the user's updated chat history + profile + cases + inbox to 0G.
+ *
+ * Throws on failure so the caller can surface it to the client. The previous
+ * "background fire-and-forget" pattern was unsafe on Vercel — once the SSE
+ * stream closed, the function could be torn down mid-upload and persistence
+ * silently failed. The chat route now awaits this BEFORE closing the stream.
+ *
+ * Returns the on-chain receipts and the streak snapshot so the route can
+ * include them in the SSE `done` payload (which lets the client hydrate
+ * without a separate /api/profile round trip).
+ */
 async function persistToStorage(
   walletAddress: string,
   updatedHistory: ChatMessage[],
   baseProfile: UserProfile,
   profilePatch: Partial<UserProfile>,
   newCases: UserProfile["cases"],
-  newInbox: UserProfile["agentInbox"],
-  index: { historyRootHash?: string | null } | null
-) {
-  try {
-    const merged: UserProfile = {
-      ...baseProfile,
-      ...profilePatch,
-      cases: [...(newCases ?? []), ...(baseProfile.cases ?? [])],
-      agentInbox: [...(newInbox ?? []), ...(baseProfile.agentInbox ?? [])].slice(0, 50),
-    };
-    const withStreak = calculateStreak(merged);
+  newInbox: UserProfile["agentInbox"]
+): Promise<{
+  historyRootHash: string;
+  profileRootHash: string;
+  newStreak: number;
+  totalMessages: number;
+}> {
+  const merged: UserProfile = {
+    ...baseProfile,
+    ...profilePatch,
+    cases: [...(newCases ?? []), ...(baseProfile.cases ?? [])],
+    agentInbox: [...(newInbox ?? []), ...(baseProfile.agentInbox ?? [])].slice(0, 50),
+  };
+  const withStreak = calculateStreak(merged);
 
-    const [historyResult, profileResult] = await Promise.all([
-      uploadHistory(updatedHistory),
-      uploadProfile(withStreak),
-    ]);
+  const [historyResult, profileResult] = await Promise.all([
+    uploadHistory(updatedHistory),
+    uploadProfile(withStreak),
+  ]);
 
-    await upsertStorageIndex(walletAddress, historyResult.rootHash, profileResult.rootHash);
-    console.log("[/api/chat/stream] persisted");
+  await upsertStorageIndex(walletAddress, historyResult.rootHash, profileResult.rootHash);
+  console.log("[/api/chat/stream] persisted");
 
-    // Sync the user's INFT (if minted) so the chain commitment matches the
-    // freshly uploaded encrypted blob. Best-effort: any failure is logged
-    // but does not block the chat response.
-    if (getCaseAgentNFTAddress()) {
-      try {
-        const tokens = await findTokensOwnedBy(walletAddress);
-        if (tokens.length > 0) {
-          const newContentHash = ethers.keccak256(
-            ethers.toUtf8Bytes(JSON.stringify(withStreak))
-          );
-          await updateAgentMetadata({
-            tokenId: tokens[0],
-            newURI: profileResult.rootHash,
-            newContentHash,
-          });
-          console.log(`[/api/chat/stream] INFT #${tokens[0]} metadata refreshed`);
-        }
-      } catch (inftErr) {
-        console.warn("[/api/chat/stream] INFT metadata refresh failed:", inftErr);
+  // Sync the user's INFT (if minted) so the chain commitment matches the
+  // freshly uploaded encrypted blob. Best-effort: a failure here does not
+  // invalidate the streak/history persist that already succeeded above.
+  if (getCaseAgentNFTAddress()) {
+    try {
+      const tokens = await findTokensOwnedBy(walletAddress);
+      if (tokens.length > 0) {
+        const newContentHash = ethers.keccak256(
+          ethers.toUtf8Bytes(JSON.stringify(withStreak))
+        );
+        await updateAgentMetadata({
+          tokenId: tokens[0],
+          newURI: profileResult.rootHash,
+          newContentHash,
+        });
+        console.log(`[/api/chat/stream] INFT #${tokens[0]} metadata refreshed`);
       }
+    } catch (inftErr) {
+      console.warn("[/api/chat/stream] INFT metadata refresh failed:", inftErr);
     }
-  } catch (err) {
-    console.error("[/api/chat/stream] background persist failed:", err);
   }
-  void index;
+
+  return {
+    historyRootHash: historyResult.rootHash,
+    profileRootHash: profileResult.rootHash,
+    newStreak: withStreak.streak,
+    totalMessages: withStreak.totalMessages,
+  };
 }
 
 function sseEvent(data: object): string {
@@ -260,35 +278,51 @@ export async function POST(req: NextRequest) {
 
       const acc = result ?? { profilePatch: {}, casesAppended: [], inboxAppended: [] };
 
-      // Surface AI-created cases + inbox items on the SSE stream so the
-      // client can hydrate its local Zustand stores immediately. Otherwise
-      // they would only appear after a full page refresh.
+      // Persist BEFORE closing the SSE stream so Vercel's serverless runtime
+      // doesn't tear down the function mid-upload. The user already saw the
+      // streaming chunks render in the bubble — keeping the connection open
+      // for the 0G upload + StorageIndex tx (~10-30s) doesn't block them.
+      //
+      // If the original profile load failed, skip persist so we don't wipe
+      // the user's real on-chain streak / createdAt / cases / persona.
+      let persistError: string | null = null;
+      let persistedStreak: number | null = null;
+      let persistedTotal: number | null = null;
+      if (profileDownloadFailed) {
+        persistError = "Profile blob was unavailable on 0G this turn — chat history and streak were not updated. Retry shortly.";
+        console.warn("[/api/chat/stream] skipped persist — profile load failed earlier this turn");
+      } else {
+        try {
+          const updatedHistory = [...history, userMsg, assistantMsg];
+          const persistResult = await persistToStorage(
+            walletAddress,
+            updatedHistory,
+            profile!,
+            acc.profilePatch,
+            acc.casesAppended,
+            acc.inboxAppended
+          );
+          persistedStreak = persistResult.newStreak;
+          persistedTotal = persistResult.totalMessages;
+        } catch (err) {
+          persistError = err instanceof Error ? err.message : String(err);
+          console.error("[/api/chat/stream] persist FAILED:", persistError);
+        }
+      }
+
+      // Surface AI-created cases + inbox items + on-chain receipts on the
+      // SSE done event so the client can hydrate its Zustand stores and
+      // refresh the dashboard immediately, without a follow-up GET.
       send({
         type: "done",
         message: assistantMsg,
         newCases: acc.casesAppended,
         newInboxItems: acc.inboxAppended,
+        persistError,
+        newStreak: persistedStreak,
+        totalMessages: persistedTotal,
       });
       controller.close();
-
-      // Skip persist if we couldn't load the user's real profile this turn —
-      // otherwise we'd overwrite their streak / createdAt / cases / persona
-      // with a fresh default.
-      if (profileDownloadFailed) {
-        console.warn("[/api/chat/stream] skipped persist — profile load failed earlier this turn");
-        return;
-      }
-
-      const updatedHistory = [...history, userMsg, assistantMsg];
-      persistToStorage(
-        walletAddress,
-        updatedHistory,
-        profile!,
-        acc.profilePatch,
-        acc.casesAppended,
-        acc.inboxAppended,
-        index
-      ).catch(() => {});
     },
   });
 
