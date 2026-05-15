@@ -16,6 +16,34 @@
 
 ---
 
+## The problem
+
+**280 million people live outside their country of birth, most cannot afford an immigration lawyer, and the SaaS apps that try to help leak their case files into centralized databases.** ZeroViza is the first immigration AI agent the user actually *owns* — agent memory lives encrypted on 0G Storage, the agent itself is a transferable ERC-7857 INFT on 0G Chain, and inference runs on 0G Compute with on-chain attestation receipts attached to every reply.
+
+---
+
+## Traction
+
+This is a hackathon submission first — these are the real, on-chain numbers as of the submission cut-off. All verifiable on [chainscan.0g.ai](https://chainscan.0g.ai).
+
+| Signal | Number | Where to verify |
+|---|---|---|
+| Mainnet contracts live | **3 / 3** | StorageIndex, LawyerRegistry, CaseAgentNFT — all listed in the Smart Contracts table |
+| Verified service providers on chain | **7** | `LawyerRegistry.verifiedCount()` reads 7 on mainnet (the seeded demo personas, badged "Demo · 0G Compute" in the UI) |
+| 0G integrations end-to-end | **Compute + Storage + Chain** | every chat message touches all three pillars (inference + history blob + StorageIndex pointer) |
+| Forge tests passing | **39** | `cd contracts && forge test -vvv` |
+| Agent tools wired | **5** | lookup_embassy, find_service_provider, create_case, extract_profile_facts, hire_provider — all callable in production |
+| Resource articles RAG-indexed | **30+** across **15 countries** | grounded citations in every AI response |
+
+**Real on-chain transactions you can paste into chainscan:**
+- CaseAgentNFT deploy (Block tx with operator-signed init): `0xF89EC187E9062CDE86719273b85F3C6974A40829`
+- Demo persona verifications (LawyerVerified events): visit the LawyerRegistry contract page → Events tab → filter `LawyerVerified` (7 entries)
+- Latest agent-to-agent hire receipts: query operator wallet `0xE5A747FA09271C8d479Cf718b205F8aADd6E4C30` → tx with native value `0.0001 0G` to a registry wallet → "Input Data" field decodes to the hire receipt JSON
+
+> **Honesty note:** ZeroViza was built end-to-end during the hackathon window. Real-user numbers (DAU, retention, waitlist) are intentionally not claimed — every figure above is a deterministic on-chain or repo measurement a judge can independently reproduce.
+
+---
+
 ## 0G Integration Proof
 
 ZeroViza integrates **three core 0G pillars** — every piece of data, every AI response, and every agent action flows through 0G:
@@ -119,30 +147,44 @@ pnpm install
 cp .env.example .env.local
 ```
 
-Required env vars:
+Required env vars (0G Aristotle Mainnet, chain id 16661):
 
 ```env
-# 0G Galileo Testnet
-NEXT_PUBLIC_0G_RPC_URL=https://evmrpc-testnet.0g.ai
-NEXT_PUBLIC_0G_CHAIN_ID=16602
+# ── Chain ─────────────────────────────────────────────────────────────────
+NEXT_PUBLIC_0G_RPC_URL=https://evmrpc.0g.ai
+NEXT_PUBLIC_0G_CHAIN_ID=16661
 
-# 0G Storage indexer
-OG_INDEXER_RPC=https://indexer-storage-testnet-standard.0g.ai
+# Deployed contracts (live, see "Smart Contracts" table above)
+NEXT_PUBLIC_STORAGE_INDEX_ADDRESS=0x486aFe3c1e3dE1253B31C82A30d5270e63403c27
+NEXT_PUBLIC_LAWYER_REGISTRY_ADDRESS=0x93A931e8ec6193c2D9F4faf28e85AaBEd9601eEC
+NEXT_PUBLIC_CASE_AGENT_NFT_ADDRESS=0xF89EC187E9062CDE86719273b85F3C6974A40829
 
-# Server wallet private key (pays compute + storage on behalf of users)
+# ── Storage ───────────────────────────────────────────────────────────────
+OG_INDEXER_RPC=https://indexer-storage-turbo.0g.ai
+
+# ── Compute (direct app-sk API — preferred) ───────────────────────────────
+# Resolve the proxy URL for your provider via the broker SDK once,
+# then hardcode it here. Example below is the qwen3.6-plus provider used
+# for the hackathon submission.
+OG_COMPUTE_API_URL=https://compute-network-18.integratenetwork.work/v1/proxy
+OG_COMPUTE_API_KEY=app-sk-...
+OG_COMPUTE_MODEL_ID=qwen3.6-plus
+
+# Broker SDK mode (used as second-tier fallback when app-sk fails)
+OG_COMPUTE_PROVIDER_ADDRESS=0x992e6396157Dc4f22E74F2231235D7DE62696db5
+
+# ── Operator wallet ───────────────────────────────────────────────────────
+# Pays gas on every user tx (mint, hire, profile update, INFT refresh).
+# Users never need to hold native 0G to use the app.
 OG_SERVER_PRIVATE_KEY=0x...
 
-# 0G Compute provider address
-OG_COMPUTE_PROVIDER_ADDRESS=0x...
+# ── Emergency fallback inference ──────────────────────────────────────────
+# Triggers ONLY if both 0G direct + broker return non-2xx. Provider badge
+# flips to grey "Groq fallback" so the UI never gives a false 0G signal.
+GROQ_API_KEY=gsk_...
 
-# Smart contracts (deployed on 0G Galileo)
-NEXT_PUBLIC_STORAGE_INDEX_ADDRESS=0x...
-NEXT_PUBLIC_LAWYER_REGISTRY_ADDRESS=0x...
-
-# Admin secret for lawyer verification
+# ── Admin + WalletConnect ─────────────────────────────────────────────────
 ADMIN_SECRET=your-admin-secret
-
-# WalletConnect (optional — enables QR code on mobile)
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=...
 ```
 
