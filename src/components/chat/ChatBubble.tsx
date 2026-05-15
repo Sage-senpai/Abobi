@@ -2,7 +2,72 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ChatMessage, ChatSource, ToolCallSummary, Attestation } from "@/types/chat";
+
+/**
+ * Renders the assistant's text body as Markdown.
+ *
+ * We deliberately do NOT pass the user's own bubble through Markdown — user
+ * questions should appear verbatim. Component overrides target the chat-bubble
+ * typography (slightly tighter line-height, list bullets, inline code) so the
+ * result matches the surrounding bubble styling instead of falling back to
+ * `prose` defaults that don't exist in this Tailwind v4 setup.
+ */
+function MarkdownBody({ children }: { children: string }) {
+  return (
+    <div className="text-sm leading-relaxed text-[#0F172A] [&_a]:text-[#DC2626] [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:no-underline">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+          strong: ({ children }) => <strong className="font-bold text-[#0F172A]">{children}</strong>,
+          em: ({ children }) => <em className="italic">{children}</em>,
+          code: ({ children, ...props }) => {
+            const isInline = !(props as { className?: string }).className?.includes("language-");
+            if (isInline) {
+              return (
+                <code className="px-1 py-0.5 rounded bg-[#F1F5F9] text-[#0F172A] text-[12.5px] font-mono">
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <code className="block px-3 py-2 rounded-lg bg-[#0F172A] text-[#F8FAFC] text-[12px] font-mono whitespace-pre-wrap">
+                {children}
+              </code>
+            );
+          },
+          ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-0.5 marker:text-[#DC2626]">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-0.5 marker:text-[#DC2626]">{children}</ol>,
+          li: ({ children }) => <li className="pl-1">{children}</li>,
+          h1: ({ children }) => <h1 className="text-base font-bold mt-3 mb-1.5 text-[#0F172A]">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-[15px] font-bold mt-3 mb-1.5 text-[#0F172A]">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-[14px] font-bold mt-2.5 mb-1 text-[#0F172A]">{children}</h3>,
+          h4: ({ children }) => <h4 className="text-[13.5px] font-semibold mt-2 mb-1 text-[#0F172A]">{children}</h4>,
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-2 border-[#DC2626] pl-3 my-2 text-[#475569] italic">
+              {children}
+            </blockquote>
+          ),
+          hr: () => <hr className="my-3 border-[#E2E8F0]" />,
+          table: ({ children }) => (
+            <div className="overflow-x-auto my-2">
+              <table className="text-[12px] border-collapse w-full">{children}</table>
+            </div>
+          ),
+          th: ({ children }) => (
+            <th className="border border-[#E2E8F0] px-2 py-1 bg-[#F8FAFC] font-bold text-left">{children}</th>
+          ),
+          td: ({ children }) => <td className="border border-[#E2E8F0] px-2 py-1 align-top">{children}</td>,
+        }}
+      >
+        {children}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 const TOOL_ICONS: Record<string, string> = {
   lookup_embassy: "\u{1F3DB}",
@@ -312,7 +377,11 @@ export function ChatBubble({ message, index }: ChatBubbleProps) {
               : "bg-white text-[#0F172A] border border-[#E2E8F0] rounded-bl-sm shadow-sm"
           }`}
         >
-          {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+          {message.content && (
+            isUser
+              ? <p className="whitespace-pre-wrap">{message.content}</p>
+              : <MarkdownBody>{message.content}</MarkdownBody>
+          )}
           {!message.content && !isUser && (
             <p className="text-[#94A3B8] text-xs italic">Agent is working…</p>
           )}
