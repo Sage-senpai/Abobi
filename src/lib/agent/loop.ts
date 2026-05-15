@@ -153,10 +153,40 @@ export async function* runAgentLoop(
           return acc;
         }
       }
-      if (!any && result.content) {
-        // Streaming returned nothing — fall back to the buffered content.
-        yield { kind: "final_chunk", content: result.content, providerAddress: result.providerAddress };
-        yield { kind: "final_done", providerAddress: result.providerAddress };
+      if (!any) {
+        // Both the non-stream chatWithTools and the follow-up streamRawMessages
+        // returned no content. This happens when the model emits neither
+        // tool_calls nor text (occasional on qwen with tool-heavy prompts).
+        // Fall through one last time with a forced-content retry: same
+        // messages but no tools, so the model must respond in plain text.
+        if (result.content) {
+          yield { kind: "final_chunk", content: result.content, providerAddress: result.providerAddress };
+          yield { kind: "final_done", providerAddress: result.providerAddress };
+        } else {
+          try {
+            const forced = await chatWithTools(messages, []);
+            if (forced.kind === "content" && forced.content) {
+              yield {
+                kind: "final_chunk",
+                content: forced.content,
+                providerAddress: forced.providerAddress,
+              };
+              yield { kind: "final_done", providerAddress: forced.providerAddress };
+            } else {
+              yield {
+                kind: "error",
+                error: "The model returned an empty response. Please rephrase your question.",
+              };
+            }
+          } catch (err) {
+            yield {
+              kind: "error",
+              error: err instanceof Error
+                ? `Inference failed on forced retry: ${err.message}`
+                : "Inference failed on forced retry",
+            };
+          }
+        }
       }
       return acc;
     }
