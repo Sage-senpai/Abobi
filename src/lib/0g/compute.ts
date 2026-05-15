@@ -375,6 +375,20 @@ function parseChoice(choice: OpenAIChoice, providerAddress: string, rawMessage: 
   };
 }
 
+/**
+ * Hard timeout in ms for non-stream tool-calling inference calls.
+ *
+ * Vercel functions have a 60s ceiling on the hobby tier (and we set
+ * `maxDuration = 60` on the chat route). If qwen3.6-plus hangs (which it
+ * occasionally does on tool-heavy / multi-region asylum-style prompts), the
+ * whole function gets killed and the SSE stream closes without ever sending
+ * `done` or `error`. The user just sees "No response received" with no
+ * fallback. With this timeout, we abort after 25s, let the catch handler in
+ * `chatWithTools` fall through to the broker → Groq chain, and either get a
+ * real answer or surface a real error event the UI can render.
+ */
+const TOOL_CALL_TIMEOUT_MS = 25_000;
+
 async function callDirectWithTools(
   messages: unknown[],
   tools: unknown[],
@@ -384,31 +398,46 @@ async function callDirectWithTools(
   const apiKey = process.env.OG_COMPUTE_API_KEY!;
   const endpoint = `${apiUrl.replace(/\/+$/, "")}/chat/completions`;
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: modelId,
-      messages,
-      tools,
-      tool_choice: "auto",
-      max_tokens: INFERENCE_CONFIG.maxTokens,
-      temperature: INFERENCE_CONFIG.temperature,
-    }),
-  });
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), TOOL_CALL_TIMEOUT_MS);
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`0G Compute tool-call error ${response.status}: ${errText}`);
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: modelId,
+        messages,
+        tools,
+        tool_choice: "auto",
+        max_tokens: INFERENCE_CONFIG.maxTokens,
+        temperature: INFERENCE_CONFIG.temperature,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`0G Compute tool-call error ${response.status}: ${errText}`);
+    }
+
+    const data = (await response.json()) as OpenAIResponse;
+    const choice = data.choices[0];
+    if (!choice) throw new Error("0G Compute returned no choices");
+    return parseChoice(choice, "0g-compute-direct", choice.message);
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(
+        `0G Compute tool-call timed out after ${TOOL_CALL_TIMEOUT_MS / 1000}s`
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(t);
   }
-
-  const data = (await response.json()) as OpenAIResponse;
-  const choice = data.choices[0];
-  if (!choice) throw new Error("0G Compute returned no choices");
-  return parseChoice(choice, "0g-compute-direct", choice.message);
 }
 
 /**
@@ -504,21 +533,34 @@ async function callGroqWithTools(
   messages: unknown[],
   tools: unknown[]
 ): Promise<ToolCallResult> {
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages,
-      tools,
-      tool_choice: "auto",
-      max_tokens: INFERENCE_CONFIG.maxTokens,
-      temperature: INFERENCE_CONFIG.temperature,
-    }),
-  });
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), TOOL_CALL_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages,
+        tools,
+        tool_choice: "auto",
+        max_tokens: INFERENCE_CONFIG.maxTokens,
+        temperature: INFERENCE_CONFIG.temperature,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(t);
+    if (controller.signal.aborted) {
+      throw new Error(`Groq tool-call timed out after ${TOOL_CALL_TIMEOUT_MS / 1000}s`);
+    }
+    throw err;
+  }
+  clearTimeout(t);
 
   if (!response.ok) {
     const errText = await response.text();
@@ -737,7 +779,12 @@ export async function* streamRawMessages(
 ): AsyncGenerator<StreamEvent, void, unknown> {
   const errors: string[] = [];
 
+  /** Stream attempts must finish within this window or the provider is treated as dead. */
+  const STREAM_TIMEOUT_MS = 40_000;
+
   if (has0GDirect()) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), STREAM_TIMEOUT_MS);
     try {
       const apiUrl = process.env.OG_COMPUTE_API_URL!;
       const apiKey = process.env.OG_COMPUTE_API_KEY!;
@@ -755,6 +802,7 @@ export async function* streamRawMessages(
           temperature: INFERENCE_CONFIG.temperature,
           stream: true,
         }),
+        signal: ctrl.signal,
       });
       if (!response.ok) throw new Error(`0G stream error ${response.status}: ${await response.text()}`);
       const directAttestation: DirectAttestation = {
@@ -772,11 +820,17 @@ export async function* streamRawMessages(
         yield { type: "chunk", content: chunk, providerAddress: directAttestation.providerAddress };
       }
       if (any) {
+        clearTimeout(t);
         yield { type: "done", providerAddress: directAttestation.providerAddress, attestation: directAttestation };
         return;
       }
     } catch (err) {
-      errors.push(`0g-direct: ${err instanceof Error ? err.message : err}`);
+      const aborted = ctrl.signal.aborted;
+      errors.push(
+        `0g-direct: ${aborted ? `timed out after ${STREAM_TIMEOUT_MS / 1000}s` : err instanceof Error ? err.message : err}`
+      );
+    } finally {
+      clearTimeout(t);
     }
   }
 
@@ -797,31 +851,39 @@ export async function* streamRawMessages(
       );
       const metadata = await broker.inference.getServiceMetadata(providerAddress);
       const baseUrl = metadata.endpoint.replace(/\/+$/, "");
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(headers as unknown as Record<string, string>),
-        },
-        body: JSON.stringify(requestBody),
-      });
-      if (!response.ok) throw new Error(`Broker stream error ${response.status}: ${await response.text()}`);
-      let any = false;
-      let accumulated = "";
-      for await (const chunk of parseSSEStream(response)) {
-        any = true;
-        accumulated += chunk;
-        yield { type: "chunk", content: chunk, providerAddress };
-      }
-      if (any) {
-        const chatId = response.headers.get("ZG-Res-Key") ?? undefined;
-        try {
-          await broker.inference.processResponse(providerAddress, chatId, accumulated);
-        } catch (err) {
-          console.warn("[streamRawMessages/broker] processResponse failed:", err);
+      const ctrlB = new AbortController();
+      const tB = setTimeout(() => ctrlB.abort(), STREAM_TIMEOUT_MS);
+      try {
+        const response = await fetch(`${baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(headers as unknown as Record<string, string>),
+          },
+          body: JSON.stringify(requestBody),
+          signal: ctrlB.signal,
+        });
+        if (!response.ok) throw new Error(`Broker stream error ${response.status}: ${await response.text()}`);
+        let any = false;
+        let accumulated = "";
+        for await (const chunk of parseSSEStream(response)) {
+          any = true;
+          accumulated += chunk;
+          yield { type: "chunk", content: chunk, providerAddress };
         }
-        yield { type: "done", providerAddress };
-        return;
+        if (any) {
+          clearTimeout(tB);
+          const chatId = response.headers.get("ZG-Res-Key") ?? undefined;
+          try {
+            await broker.inference.processResponse(providerAddress, chatId, accumulated);
+          } catch (err) {
+            console.warn("[streamRawMessages/broker] processResponse failed:", err);
+          }
+          yield { type: "done", providerAddress };
+          return;
+        }
+      } finally {
+        clearTimeout(tB);
       }
     } catch (err) {
       errors.push(`0g-broker: ${err instanceof Error ? err.message : err}`);
@@ -829,6 +891,8 @@ export async function* streamRawMessages(
   }
 
   if (hasGroqFallback()) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), STREAM_TIMEOUT_MS);
     try {
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -843,6 +907,7 @@ export async function* streamRawMessages(
           temperature: INFERENCE_CONFIG.temperature,
           stream: true,
         }),
+        signal: ctrl.signal,
       });
       if (!response.ok) throw new Error(`Groq stream error ${response.status}: ${await response.text()}`);
       let any = false;
@@ -851,11 +916,17 @@ export async function* streamRawMessages(
         yield { type: "chunk", content: chunk, providerAddress: "groq-fallback" };
       }
       if (any) {
+        clearTimeout(t);
         yield { type: "done", providerAddress: "groq-fallback" };
         return;
       }
     } catch (err) {
-      errors.push(`groq: ${err instanceof Error ? err.message : err}`);
+      const aborted = ctrl.signal.aborted;
+      errors.push(
+        `groq: ${aborted ? `timed out after ${STREAM_TIMEOUT_MS / 1000}s` : err instanceof Error ? err.message : err}`
+      );
+    } finally {
+      clearTimeout(t);
     }
   }
 
